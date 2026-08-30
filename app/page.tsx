@@ -171,22 +171,13 @@ function HomePageContent() {
                   <p className="font-serif italic text-lg mb-4" style={{ color: 'var(--text-secondary)' }}>
                     Your archive has no worlds yet.
                   </p>
-                  <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                    <button
-                      onClick={() => setCreateOpen(true)}
-                      className="px-4 py-2 rounded text-xs font-medium"
-                      style={{ background: 'var(--accent-rust)', color: '#FCFAF7' }}
-                    >
-                      + Create First World
-                    </button>
-                    <button
-                      onClick={restoreDemoData}
-                      className="px-3.5 py-2 rounded text-xs font-mono transition-colors hover:bg-[#ECE8DF]"
-                      style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', background: 'var(--surface)' }}
-                    >
-                      Restore Sample Worlds
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => setCreateOpen(true)}
+                    className="px-5 py-2.5 rounded text-xs font-medium"
+                    style={{ background: 'var(--accent-rust)', color: '#FCFAF7' }}
+                  >
+                    + Create First World
+                  </button>
                 </div>
               ) : (
                 ideas.map(idea => {

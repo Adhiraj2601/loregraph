@@ -220,24 +220,16 @@ function UniverseContent() {
                 The universe is quiet.
               </h2>
               <p className="font-serif italic text-sm mb-6 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                No worlds exist in this archive yet. Begin by charting your first world, or restore the sample archive.
+                No worlds exist in this archive yet. Begin by charting your first world.
               </p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5">
+              <div className="flex items-center justify-center">
                 <button
                   onClick={() => setCreateOpen(true)}
-                  className="w-full sm:w-auto px-4 py-2 rounded text-xs font-medium transition-all flex items-center justify-center gap-1.5"
+                  className="px-5 py-2.5 rounded text-xs font-medium transition-all flex items-center justify-center gap-1.5"
                   style={{ background: 'var(--accent-rust)', color: '#FCFAF7' }}
                 >
                   <Plus size={13} />
                   <span>Create First World</span>
-                </button>
-                <button
-                  onClick={restoreDemoData}
-                  className="w-full sm:w-auto px-4 py-2 rounded text-xs font-mono transition-colors hover:bg-[#ECE8DF] flex items-center justify-center gap-1.5"
-                  style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', background: 'var(--surface)' }}
-                >
-                  <RefreshCw size={12} />
-                  <span>Restore Sample Worlds</span>
                 </button>
               </div>
             </div>
