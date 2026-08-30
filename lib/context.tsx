@@ -5,7 +5,7 @@ import { Idea, CreateIdeaInput } from '@/types/idea';
 import { LoreNode, CreateNodeInput } from '@/types/node';
 import { LoreEdge, CreateEdgeInput } from '@/types/edge';
 import { InboxItem, CreateInboxItemInput } from '@/types/inbox';
-import { ideaRepo, nodeRepo, edgeRepo, inboxRepo } from '@/lib/storage/repository';
+import { ideaRepo, nodeRepo, edgeRepo, inboxRepo, syncFromSupabase } from '@/lib/storage/repository';
 import { seedDemoData, forceSeedDemoData } from '@/data/demo-data';
 
 interface LoreGraphContextValue {
@@ -51,16 +51,24 @@ export function LoreGraphProvider({ children }: { children: React.ReactNode }) {
   const [isQuickIdeaOpen, setIsQuickIdeaOpen] = useState(false);
   const initialized = useRef(false);
 
+  const refreshIdeas = useCallback(() => setIdeas(ideaRepo.getAll()), []);
+  const refreshInbox = useCallback(() => setInbox(inboxRepo.getAll_public()), []);
+
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
-    seedDemoData();
+
+    // First load local storage
     setIdeas(ideaRepo.getAll());
     setInbox(inboxRepo.getAll_public());
-  }, []);
 
-  const refreshIdeas = useCallback(() => setIdeas(ideaRepo.getAll()), []);
-  const refreshInbox = useCallback(() => setInbox(inboxRepo.getAll_public()), []);
+    // Then sync from cloud if configured
+    syncFromSupabase().then(() => {
+      seedDemoData();
+      refreshIdeas();
+      refreshInbox();
+    });
+  }, [refreshIdeas, refreshInbox]);
 
   // Ideas
   const createIdea = useCallback((input: CreateIdeaInput): Idea => {

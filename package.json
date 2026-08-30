@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.112.4",
     "@xyflow/react": "^12.11.5",
     "framer-motion": "^13.1.1",
     "lucide-react": "^0.475.0",
