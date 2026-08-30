@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowUpRight, Plus, Sparkles, User, Wand2, Compass } from 'lucide-react';
+import { ArrowUpRight, Plus, Sparkles, User, Wand2, Compass, RefreshCw } from 'lucide-react';
 import { useLoreGraph, LoreGraphProvider } from '@/lib/context';
 import { Navigation } from '@/components/ui/Navigation';
 import { CreateIdeaModal } from '@/components/modals/CreateIdeaModal';
@@ -45,6 +45,14 @@ function HomePageContent() {
   }, [ideas]);
 
   const pendingInbox = inbox.filter(i => i.status === 'pending');
+
+  // Dynamically compute sequential section numbers
+  let sectionIndex = 1;
+  const nextSectionNum = () => {
+    const num = sectionIndex < 10 ? `0${sectionIndex}` : `${sectionIndex}`;
+    sectionIndex++;
+    return num;
+  };
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
@@ -148,10 +156,10 @@ function HomePageContent() {
             </button>
           </div>
 
-          {/* 01 WORLDS */}
+          {/* WORLDS SECTION */}
           <div>
             <div className="flex items-center gap-3 mb-4">
-              <span className="font-mono text-xs" style={{ color: 'var(--accent-rust)' }}>01</span>
+              <span className="font-mono text-xs" style={{ color: 'var(--accent-rust)' }}>{nextSectionNum()}</span>
               <h3 className="text-xs font-mono uppercase tracking-widest font-semibold" style={{ color: 'var(--text-primary)', letterSpacing: '0.15em' }}>
                 Worlds & Universes
               </h3>
@@ -233,11 +241,11 @@ function HomePageContent() {
             </div>
           </div>
 
-          {/* 02 CHARACTERS */}
+          {/* CHARACTERS SECTION (if any exist) */}
           {characters.length > 0 && (
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <span className="font-mono text-xs" style={{ color: 'var(--accent-rust)' }}>02</span>
+                <span className="font-mono text-xs" style={{ color: 'var(--accent-rust)' }}>{nextSectionNum()}</span>
                 <h3 className="text-xs font-mono uppercase tracking-widest font-semibold" style={{ color: 'var(--text-primary)', letterSpacing: '0.15em' }}>
                   Key Figures & Characters
                 </h3>
@@ -266,11 +274,11 @@ function HomePageContent() {
             </div>
           )}
 
-          {/* 03 SYSTEMS & LORE */}
+          {/* SYSTEMS & LORE SECTION (if any exist) */}
           {systems.length > 0 && (
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <span className="font-mono text-xs" style={{ color: 'var(--accent-rust)' }}>03</span>
+                <span className="font-mono text-xs" style={{ color: 'var(--accent-rust)' }}>{nextSectionNum()}</span>
                 <h3 className="text-xs font-mono uppercase tracking-widest font-semibold" style={{ color: 'var(--text-primary)', letterSpacing: '0.15em' }}>
                   Magic, Lore & Concepts
                 </h3>
@@ -302,11 +310,11 @@ function HomePageContent() {
             </div>
           )}
 
-          {/* 04 FRAGMENTS */}
+          {/* FRAGMENTS & SPARKS SECTION */}
           <div>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <span className="font-mono text-xs" style={{ color: 'var(--accent-rust)' }}>04</span>
+                <span className="font-mono text-xs" style={{ color: 'var(--accent-rust)' }}>{nextSectionNum()}</span>
                 <h3 className="text-xs font-mono uppercase tracking-widest font-semibold" style={{ color: 'var(--text-primary)', letterSpacing: '0.15em' }}>
                   Fragments & Sparks
                 </h3>
