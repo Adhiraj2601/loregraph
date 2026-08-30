@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -15,9 +15,10 @@ import {
 import '@xyflow/react/dist/style.css';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Trash2 } from 'lucide-react';
+import { ArrowLeft, Trash2, Plus, RefreshCw } from 'lucide-react';
 import { LoreGraphProvider, useLoreGraph } from '@/lib/context';
 import { Navigation } from '@/components/ui/Navigation';
+import { CreateIdeaModal } from '@/components/modals/CreateIdeaModal';
 import { nodeRepo } from '@/lib/storage/repository';
 
 function UniverseNode({ data }: { data: Record<string, unknown> }) {
@@ -76,11 +77,12 @@ function UniverseNode({ data }: { data: Record<string, unknown> }) {
 const universeNodeTypes = { universeNode: UniverseNode };
 
 function UniverseContent() {
-  const { ideas, deleteIdea } = useLoreGraph();
+  const { ideas, deleteIdea, restoreDemoData } = useLoreGraph();
   const router = useRouter();
   const { fitView } = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const handleDeleteWorld = useCallback((id: string, title: string) => {
     if (window.confirm(`Are you sure you want to delete "${title}" and all its ideas?`)) {
@@ -137,11 +139,12 @@ function UniverseContent() {
     setNodes(flowNodes);
     setEdges(flowEdges);
 
-    // Smooth fit view
-    const timer = setTimeout(() => {
-      fitView({ padding: 0.25, duration: 400 });
-    }, 100);
-    return () => clearTimeout(timer);
+    if (ideas.length > 0) {
+      const timer = setTimeout(() => {
+        fitView({ padding: 0.25, duration: 400 });
+      }, 100);
+      return () => clearTimeout(timer);
+    }
   }, [ideas, handleDeleteWorld, setNodes, setEdges, fitView]);
 
   const handleNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
@@ -181,31 +184,85 @@ function UniverseContent() {
             </h1>
           </div>
 
-          <span
-            className="pointer-events-auto text-xs font-mono hidden sm:inline"
-            style={{ color: 'var(--text-tertiary)' }}
-          >
-            {ideas.length} Worlds · Hover card to delete or click to explore
-          </span>
+          <div className="pointer-events-auto flex items-center gap-3">
+            <button
+              onClick={() => setCreateOpen(true)}
+              className="px-3 py-1.5 rounded text-xs font-medium transition-all hover:bg-[#ECE8DF] flex items-center gap-1.5"
+              style={{
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
+                color: 'var(--accent-rust)',
+              }}
+            >
+              <Plus size={13} />
+              <span>New World</span>
+            </button>
+
+            {ideas.length > 0 && (
+              <span
+                className="text-xs font-mono hidden md:inline"
+                style={{ color: 'var(--text-tertiary)' }}
+              >
+                {ideas.length} Worlds
+              </span>
+            )}
+          </div>
         </div>
 
-        <div style={{ position: 'absolute', inset: 0, top: '56px' }}>
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onNodeClick={handleNodeClick}
-            nodeTypes={universeNodeTypes}
-            fitView
-            fitViewOptions={{ padding: 0.25 }}
-            proOptions={{ hideAttribution: true }}
-            style={{ background: 'var(--bg)' }}
-          >
-            <Background variant={BackgroundVariant.Dots} gap={24} size={0.75} color="rgba(162, 158, 149, 0.4)" />
-          </ReactFlow>
-        </div>
+        {ideas.length === 0 ? (
+          /* Empty Universe State */
+          <div className="absolute inset-0 flex items-center justify-center p-6">
+            <div className="text-center max-w-sm">
+              <div className="w-12 h-12 rounded-full border border-[var(--border)] flex items-center justify-center mx-auto mb-4 bg-[var(--surface)] text-[var(--accent-rust)] text-lg">
+                ✻
+              </div>
+              <h2 className="font-serif text-2xl sm:text-3xl font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
+                The universe is quiet.
+              </h2>
+              <p className="font-serif italic text-sm mb-6 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                No worlds exist in this archive yet. Begin by charting your first world, or restore the sample archive.
+              </p>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5">
+                <button
+                  onClick={() => setCreateOpen(true)}
+                  className="w-full sm:w-auto px-4 py-2 rounded text-xs font-medium transition-all flex items-center justify-center gap-1.5"
+                  style={{ background: 'var(--accent-rust)', color: '#FCFAF7' }}
+                >
+                  <Plus size={13} />
+                  <span>Create First World</span>
+                </button>
+                <button
+                  onClick={restoreDemoData}
+                  className="w-full sm:w-auto px-4 py-2 rounded text-xs font-mono transition-colors hover:bg-[#ECE8DF] flex items-center justify-center gap-1.5"
+                  style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', background: 'var(--surface)' }}
+                >
+                  <RefreshCw size={12} />
+                  <span>Restore Sample Worlds</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div style={{ position: 'absolute', inset: 0, top: '56px' }}>
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onNodeClick={handleNodeClick}
+              nodeTypes={universeNodeTypes}
+              fitView
+              fitViewOptions={{ padding: 0.25 }}
+              proOptions={{ hideAttribution: true }}
+              style={{ background: 'var(--bg)' }}
+            >
+              <Background variant={BackgroundVariant.Dots} gap={24} size={0.75} color="rgba(162, 158, 149, 0.4)" />
+            </ReactFlow>
+          </div>
+        )}
       </div>
+
+      {createOpen && <CreateIdeaModal onClose={() => setCreateOpen(false)} />}
     </div>
   );
 }

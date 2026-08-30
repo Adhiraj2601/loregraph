@@ -6,7 +6,7 @@ import { LoreNode, CreateNodeInput } from '@/types/node';
 import { LoreEdge, CreateEdgeInput } from '@/types/edge';
 import { InboxItem, CreateInboxItemInput } from '@/types/inbox';
 import { ideaRepo, nodeRepo, edgeRepo, inboxRepo } from '@/lib/storage/repository';
-import { seedDemoData } from '@/data/demo-data';
+import { seedDemoData, forceSeedDemoData } from '@/data/demo-data';
 
 interface LoreGraphContextValue {
   // Ideas
@@ -14,6 +14,7 @@ interface LoreGraphContextValue {
   createIdea: (input: CreateIdeaInput) => Idea;
   updateIdea: (id: string, updates: Partial<Idea>) => void;
   deleteIdea: (id: string) => void;
+  restoreDemoData: () => void;
   // Nodes
   getNodes: (ideaId: string) => LoreNode[];
   createNode: (input: CreateNodeInput) => LoreNode;
@@ -80,6 +81,12 @@ export function LoreGraphProvider({ children }: { children: React.ReactNode }) {
     refreshIdeas();
   }, [refreshIdeas]);
 
+  const restoreDemoData = useCallback(() => {
+    forceSeedDemoData();
+    refreshIdeas();
+    refreshInbox();
+  }, [refreshIdeas, refreshInbox]);
+
   // Nodes
   const getNodes = useCallback((ideaId: string) => nodeRepo.getAllByIdeaId(ideaId), []);
   const createNode = useCallback((input: CreateNodeInput): LoreNode => nodeRepo.create(input), []);
@@ -110,7 +117,7 @@ export function LoreGraphProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <LoreGraphContext.Provider value={{
-      ideas, createIdea, updateIdea, deleteIdea,
+      ideas, createIdea, updateIdea, deleteIdea, restoreDemoData,
       getNodes, createNode, updateNode, deleteNode,
       getEdges, createEdge, deleteEdge,
       inbox, createInboxItem, updateInboxItem, deleteInboxItem,

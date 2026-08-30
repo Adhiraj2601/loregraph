@@ -14,7 +14,7 @@ import { NODE_TYPE_CONFIG } from '@/lib/nodeTypes';
 
 function HomePageContent() {
   const router = useRouter();
-  const { ideas, inbox, deleteIdea } = useLoreGraph();
+  const { ideas, inbox, deleteIdea, restoreDemoData } = useLoreGraph();
   const [createOpen, setCreateOpen] = useState(false);
 
   // Aggregate characters, magic, lore across all worlds for the index
@@ -159,17 +159,26 @@ function HomePageContent() {
 
             <div className="divide-y" style={{ borderColor: 'var(--border-light)' }}>
               {ideas.length === 0 ? (
-                <div className="py-8 text-center">
-                  <p className="font-serif italic text-base" style={{ color: 'var(--text-secondary)' }}>
+                <div className="py-12 text-center">
+                  <p className="font-serif italic text-lg mb-4" style={{ color: 'var(--text-secondary)' }}>
                     Your archive has no worlds yet.
                   </p>
-                  <button
-                    onClick={() => setCreateOpen(true)}
-                    className="mt-3 text-xs font-medium underline"
-                    style={{ color: 'var(--accent-rust)' }}
-                  >
-                    Create the first world →
-                  </button>
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                    <button
+                      onClick={() => setCreateOpen(true)}
+                      className="px-4 py-2 rounded text-xs font-medium"
+                      style={{ background: 'var(--accent-rust)', color: '#FCFAF7' }}
+                    >
+                      + Create First World
+                    </button>
+                    <button
+                      onClick={restoreDemoData}
+                      className="px-3.5 py-2 rounded text-xs font-mono transition-colors hover:bg-[#ECE8DF]"
+                      style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', background: 'var(--surface)' }}
+                    >
+                      Restore Sample Worlds
+                    </button>
+                  </div>
                 </div>
               ) : (
                 ideas.map(idea => {

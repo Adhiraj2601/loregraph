@@ -402,3 +402,13 @@ export function seedDemoData() {
 
   markSeeded();
 }
+
+export function forceSeedDemoData() {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem('loregraph:seeded');
+  } catch (e) {
+    console.error(e);
+  }
+  seedDemoData();
+}
