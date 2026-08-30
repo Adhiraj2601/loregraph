@@ -1,26 +1,150 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=JetBrains+Mono:wght@400;500&display=swap');
+
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #F4F1EA;
+  --bg-subtle: #ECE8DF;
+  --surface: #FCFAF7;
+  --border: #D8D4CA;
+  --border-light: #E7E3D9;
+  --text-primary: #171717;
+  --text-secondary: #73716B;
+  --text-tertiary: #A29E95;
+  --accent-rust: #8A4938;
+  --accent-slate: #596A72;
+  --accent-ochre: #9E6B47;
+  --accent-olive: #657560;
+  
+  /* Fallbacks for existing variables */
+  --panel: #FCFAF7;
+  --text: #171717;
+  --text2: #73716B;
+  --accent: #8A4938;
+  --accent2: #596A72;
+  --success: #657560;
+  --danger: #9B3D3D;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  background-color: var(--bg);
+  min-height: 100vh;
+  color: var(--text-primary);
+}
+
+.font-serif {
+  font-family: 'Newsreader', Georgia, serif;
+}
+
+.font-sans {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+::selection {
+  background: rgba(138, 73, 56, 0.15);
+  color: var(--text-primary);
+}
+
+/* Minimal Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}
+
+/* Focus styles */
+:focus-visible {
+  outline: 1.5px solid var(--accent-rust);
+  outline-offset: 2px;
+}
+
+/* React Flow Notebook Overrides */
+.react-flow__background {
+  background-color: var(--bg) !important;
+}
+
+.react-flow__edge-path {
+  stroke: #B8B3A8 !important;
+  stroke-width: 1.25 !important;
+  transition: stroke 0.2s, stroke-width 0.2s;
+}
+
+.react-flow__edge.selected .react-flow__edge-path,
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke: var(--accent-rust) !important;
+  stroke-width: 1.75 !important;
+}
+
+.react-flow__edge-label {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 9px !important;
+  fill: var(--text-secondary) !important;
+}
+
+.react-flow__handle {
+  width: 6px !important;
+  height: 6px !important;
+  background: var(--accent-rust) !important;
+  border: 1.5px solid var(--surface) !important;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.react-flow__node:hover .react-flow__handle,
+.react-flow__node.selected .react-flow__handle {
+  opacity: 1;
+}
+
+.react-flow__connection-line {
+  stroke: var(--accent-rust) !important;
+  stroke-width: 1.25 !important;
+  stroke-dasharray: 4 !important;
+}
+
+/* Subtle archival grid pattern */
+.archival-pattern {
+  background-image: radial-gradient(circle, rgba(162, 158, 149, 0.4) 0.75px, transparent 0.75px);
+  background-size: 24px 24px;
+}
+
+/* Smooth subtle animations */
+@keyframes editorialFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-editorial-fade {
+  animation: editorialFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
