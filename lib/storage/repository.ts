@@ -2,6 +2,7 @@ import { Idea, CreateIdeaInput } from '@/types/idea';
 import { LoreNode, CreateNodeInput } from '@/types/node';
 import { LoreEdge, CreateEdgeInput } from '@/types/edge';
 import { InboxItem, CreateInboxItemInput } from '@/types/inbox';
+import { DrawingStroke, CreateStrokeInput } from '@/types/drawing';
 import { generateId } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 
@@ -42,6 +43,15 @@ export interface IInboxRepository {
   delete(id: string): void;
 }
 
+export interface IDrawingRepository {
+  getAll(): DrawingStroke[];
+  getAllByIdeaId(ideaId: string): DrawingStroke[];
+  saveAll(ideaId: string, strokes: DrawingStroke[]): void;
+  create(input: CreateStrokeInput): DrawingStroke;
+  delete(id: string): void;
+  deleteAllByIdeaId(ideaId: string): void;
+}
+
 // ─── LocalStorage Keys ────────────────────────────────────────────────────────
 
 const KEYS = {
@@ -49,6 +59,7 @@ const KEYS = {
   NODES: 'loregraph:nodes',
   EDGES: 'loregraph:edges',
   INBOX: 'loregraph:inbox',
+  DRAWINGS: 'loregraph:drawings',
   SEEDED: 'loregraph:seeded',
 } as const;
 
@@ -79,11 +90,12 @@ function safeSet<T>(key: string, value: T): void {
 export async function syncFromSupabase(): Promise<boolean> {
   if (!supabase) return false;
   try {
-    const [ideasRes, nodesRes, edgesRes, inboxRes] = await Promise.all([
+    const [ideasRes, nodesRes, edgesRes, inboxRes, drawingsRes] = await Promise.all([
       supabase.from('ideas').select('*'),
       supabase.from('nodes').select('*'),
       supabase.from('edges').select('*'),
       supabase.from('inbox').select('*'),
+      supabase.from('drawings').select('*'),
     ]);
 
     if (ideasRes.data && ideasRes.data.length > 0) {
@@ -135,6 +147,20 @@ export async function syncFromSupabase(): Promise<boolean> {
         createdAt: i.created_at,
       }));
       safeSet(KEYS.INBOX, mappedInbox);
+    }
+
+    if (drawingsRes.data) {
+      const mappedDrawings: DrawingStroke[] = drawingsRes.data.map(d => ({
+        id: d.id,
+        ideaId: d.idea_id,
+        points: d.points || [],
+        color: d.color,
+        size: d.size,
+        tool: d.tool,
+        opacity: d.opacity,
+        createdAt: d.created_at,
+      }));
+      safeSet(KEYS.DRAWINGS, mappedDrawings);
     }
 
     return true;
@@ -444,12 +470,97 @@ export class LocalInboxRepository implements IInboxRepository {
   }
 }
 
+// ─── Drawing Repository ───────────────────────────────────────────────────────
+
+export class LocalDrawingRepository implements IDrawingRepository {
+  getAll(): DrawingStroke[] {
+    return safeGet<DrawingStroke[]>(KEYS.DRAWINGS, []);
+  }
+
+  getAllByIdeaId(ideaId: string): DrawingStroke[] {
+    return this.getAll().filter((s) => s.ideaId === ideaId);
+  }
+
+  saveAll(ideaId: string, strokes: DrawingStroke[]): void {
+    const otherStrokes = this.getAll().filter((s) => s.ideaId !== ideaId);
+    safeSet(KEYS.DRAWINGS, [...otherStrokes, ...strokes]);
+
+    const client = supabase;
+    if (client) {
+      // Background upsert
+      client.from('drawings').delete().eq('idea_id', ideaId).then(() => {
+        if (strokes.length > 0) {
+          client.from('drawings').insert(
+            strokes.map(s => ({
+              id: s.id,
+              idea_id: s.ideaId,
+              points: s.points,
+              color: s.color,
+              size: s.size,
+              tool: s.tool,
+              opacity: s.opacity ?? 1,
+              created_at: s.createdAt || new Date().toISOString(),
+            }))
+          ).then(({ error }) => { if (error) console.error('Cloud drawings save error:', error); });
+        }
+      });
+    }
+  }
+
+  create(input: CreateStrokeInput): DrawingStroke {
+    const stroke: DrawingStroke = {
+      id: generateId(),
+      ...input,
+      createdAt: new Date().toISOString(),
+    };
+    const all = this.getAll();
+    safeSet(KEYS.DRAWINGS, [...all, stroke]);
+
+    const client = supabase;
+    if (client) {
+      client.from('drawings').insert({
+        id: stroke.id,
+        idea_id: stroke.ideaId,
+        points: stroke.points,
+        color: stroke.color,
+        size: stroke.size,
+        tool: stroke.tool,
+        opacity: stroke.opacity ?? 1,
+        created_at: stroke.createdAt,
+      }).then(({ error }) => { if (error) console.error('Cloud drawing insert error:', error); });
+    }
+
+    return stroke;
+  }
+
+  delete(id: string): void {
+    safeSet(KEYS.DRAWINGS, this.getAll().filter((s) => s.id !== id));
+    const client = supabase;
+    if (client) {
+      client.from('drawings').delete().eq('id', id).then(({ error }) => {
+        if (error) console.error('Cloud drawing delete error:', error);
+      });
+    }
+  }
+
+  deleteAllByIdeaId(ideaId: string): void {
+    safeSet(KEYS.DRAWINGS, this.getAll().filter((s) => s.ideaId !== ideaId));
+    const client = supabase;
+    if (client) {
+      client.from('drawings').delete().eq('idea_id', ideaId).then(({ error }) => {
+        if (error) console.error('Cloud drawings deleteAll error:', error);
+      });
+    }
+  }
+}
+
 // ─── Singleton instances ──────────────────────────────────────────────────────
 
 export const ideaRepo = new LocalIdeaRepository();
 export const nodeRepo = new LocalNodeRepository();
 export const edgeRepo = new LocalEdgeRepository();
 export const inboxRepo = new LocalInboxRepository();
+export const drawingRepo = new LocalDrawingRepository();
 
 // ─── Seed check ───────────────────────────────────────────────────────────────
 

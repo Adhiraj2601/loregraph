@@ -22,6 +22,8 @@ import type { LoreNode } from '@/types/node';
 import type { LoreEdge as LoreEdgeType } from '@/types/edge';
 import { LoreNodeData, nodeTypes } from '@/components/nodes/LoreGraphNode';
 import { nodeRepo, edgeRepo } from '@/lib/storage/repository';
+import { DrawingCanvas } from '@/components/graph/DrawingCanvas';
+import { DrawingStroke, DrawingTool } from '@/types/drawing';
 
 // ─── Local debounce ──────────────────────────────────────────────────────────
 
@@ -119,6 +121,12 @@ interface GraphCanvasProps {
   onNodeClick: (nodeId: string) => void;
   onCanvasClick: () => void;
   isExploreMode: boolean;
+  isDrawingMode?: boolean;
+  activeTool?: DrawingTool;
+  activeColor?: string;
+  activeSize?: number;
+  strokes?: DrawingStroke[];
+  onStrokesChange?: (strokes: DrawingStroke[]) => void;
   refreshKey?: number;
 }
 
@@ -128,6 +136,12 @@ export function GraphCanvas({
   onNodeClick,
   onCanvasClick,
   isExploreMode,
+  isDrawingMode = false,
+  activeTool = 'pen',
+  activeColor = '#8A4938',
+  activeSize = 4,
+  strokes = [],
+  onStrokesChange,
   refreshKey,
 }: GraphCanvasProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
@@ -214,19 +228,21 @@ export function GraphCanvas({
 
   const handleNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
+      if (isDrawingMode) return;
       onNodeClick(node.id);
       if (isExploreMode) {
         setCenter(node.position.x + 60, node.position.y + 20, { zoom: 1.25, duration: 500 });
       }
     },
-    [onNodeClick, isExploreMode, setCenter]
+    [onNodeClick, isExploreMode, isDrawingMode, setCenter]
   );
 
   const handleNodeDoubleClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
+      if (isDrawingMode) return;
       setCenter(node.position.x + 60, node.position.y + 20, { zoom: 1.4, duration: 500 });
     },
-    [setCenter]
+    [isDrawingMode, setCenter]
   );
 
   return (
@@ -238,12 +254,16 @@ export function GraphCanvas({
       onConnect={onConnect}
       onNodeClick={handleNodeClick}
       onNodeDoubleClick={handleNodeDoubleClick}
-      onPaneClick={onCanvasClick}
+      onPaneClick={() => {
+        if (!isDrawingMode) onCanvasClick();
+      }}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
-      nodesDraggable={!isExploreMode}
-      nodesConnectable={!isExploreMode}
-      elementsSelectable={true}
+      nodesDraggable={!isExploreMode && !isDrawingMode}
+      nodesConnectable={!isExploreMode && !isDrawingMode}
+      elementsSelectable={!isDrawingMode}
+      panOnDrag={!isDrawingMode}
+      selectionOnDrag={false}
       fitView
       fitViewOptions={{ padding: 0.2 }}
       minZoom={0.2}
@@ -257,6 +277,17 @@ export function GraphCanvas({
         gap={24}
         size={0.75}
         color="rgba(162, 158, 149, 0.45)"
+      />
+
+      {/* Freehand Vector Drawing Layer */}
+      <DrawingCanvas
+        ideaId={ideaId}
+        strokes={strokes}
+        onStrokesChange={onStrokesChange || (() => {})}
+        isDrawingMode={isDrawingMode}
+        activeTool={activeTool}
+        activeColor={activeColor}
+        activeSize={activeSize}
       />
     </ReactFlow>
   );

@@ -28,6 +28,16 @@ const shortcuts = [
     ],
   },
   {
+    category: 'Sketch & Drawing',
+    items: [
+      { key: 'D', label: 'Ink Pen mode' },
+      { key: 'H', label: 'Highlighter / Wash mode' },
+      { key: 'E', label: 'Stroke Eraser' },
+      { key: 'V / Esc', label: 'Select / Navigate mode' },
+      { key: '⌘ + Z', label: 'Undo stroke' },
+    ],
+  },
+  {
     category: 'Quick Thought',
     items: [
       { key: '⌘ + Enter', label: 'Keep thought immediately' },

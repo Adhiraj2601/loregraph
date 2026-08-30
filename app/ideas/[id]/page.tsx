@@ -7,13 +7,15 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { LoreGraphProvider, useLoreGraph } from '@/lib/context';
 import { GraphCanvas } from '@/components/graph/GraphCanvas';
 import { GraphToolbar } from '@/components/graph/GraphToolbar';
+import { DrawingToolbar } from '@/components/graph/DrawingToolbar';
 import { NodeDetailPanel } from '@/components/panels/NodeDetailPanel';
 import { CreateNodeModal } from '@/components/modals/CreateNodeModal';
 import { Navigation } from '@/components/ui/Navigation';
-import { nodeRepo, edgeRepo, ideaRepo } from '@/lib/storage/repository';
+import { nodeRepo, edgeRepo, ideaRepo, drawingRepo } from '@/lib/storage/repository';
 import { LoreNode } from '@/types/node';
 import { LoreEdge } from '@/types/edge';
 import { Idea } from '@/types/idea';
+import { DrawingStroke, DrawingTool } from '@/types/drawing';
 
 function GraphPageContent() {
   const params = useParams();
@@ -26,8 +28,13 @@ function GraphPageContent() {
   const [idea, setIdea] = useState<Idea | null>(null);
   const [nodes, setNodes] = useState<LoreNode[]>([]);
   const [edges, setEdges] = useState<LoreEdge[]>([]);
+  const [strokes, setStrokes] = useState<DrawingStroke[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [isExploreMode, setIsExploreMode] = useState(false);
+  const [isDrawingMode, setIsDrawingMode] = useState(false);
+  const [activeTool, setActiveTool] = useState<DrawingTool>('pen');
+  const [activeColor, setActiveColor] = useState('#8A4938');
+  const [activeSize, setActiveSize] = useState(4);
   const [showCreateNode, setShowCreateNode] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
@@ -41,13 +48,14 @@ function GraphPageContent() {
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  // Load idea + nodes + edges
+  // Load idea + nodes + edges + drawings
   const loadData = useCallback(() => {
     const foundIdea = ideaRepo.getById(ideaId);
     if (!foundIdea) { router.push('/'); return; }
     setIdea(foundIdea);
     setNodes(nodeRepo.getAllByIdeaId(ideaId));
     setEdges(edgeRepo.getAllByIdeaId(ideaId));
+    setStrokes(drawingRepo.getAllByIdeaId(ideaId));
   }, [ideaId, router]);
 
   useEffect(() => {
@@ -61,23 +69,68 @@ function GraphPageContent() {
     if (nodeParam) setSelectedNodeId(nodeParam);
   }, [searchParams]);
 
+  const handleStrokesChange = useCallback((newStrokes: DrawingStroke[]) => {
+    setStrokes(newStrokes);
+    drawingRepo.saveAll(ideaId, newStrokes);
+  }, [ideaId]);
+
+  const handleUndo = useCallback(() => {
+    if (strokes.length === 0) return;
+    const updated = strokes.slice(0, -1);
+    setStrokes(updated);
+    drawingRepo.saveAll(ideaId, updated);
+  }, [strokes, ideaId]);
+
+  const handleClearDrawings = useCallback(() => {
+    setStrokes([]);
+    drawingRepo.deleteAllByIdeaId(ideaId);
+  }, [ideaId]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (e.key === 'Escape') { setSelectedNodeId(null); }
-      if (e.key === ' ') { e.preventDefault(); setIsExploreMode(v => !v); }
-      if (e.key === 'n' || e.key === 'N') { if (!isExploreMode) setShowCreateNode(true); }
-      if (e.key === 'f' || e.key === 'F') { setRefreshKey(k => k + 1); }
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedNodeId) {
+
+      // Undo
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+        e.preventDefault();
+        handleUndo();
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        if (isDrawingMode) {
+          setIsDrawingMode(false);
+        } else {
+          setSelectedNodeId(null);
+        }
+      } else if (e.key === 'd' || e.key === 'D') {
+        setIsDrawingMode(true);
+        setActiveTool('pen');
+      } else if (e.key === 'v' || e.key === 'V') {
+        setIsDrawingMode(false);
+      } else if (e.key === 'e' || e.key === 'E') {
+        setIsDrawingMode(true);
+        setActiveTool('eraser');
+      } else if (e.key === 'h' || e.key === 'H') {
+        setIsDrawingMode(true);
+        setActiveTool('highlighter');
+      } else if (e.key === ' ') {
+        e.preventDefault();
+        setIsExploreMode(v => !v);
+      } else if (e.key === 'n' || e.key === 'N') {
+        if (!isExploreMode && !isDrawingMode) setShowCreateNode(true);
+      } else if (e.key === 'f' || e.key === 'F') {
+        setRefreshKey(k => k + 1);
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedNodeId && !isDrawingMode) {
           handleDeleteNode(selectedNodeId);
         }
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isExploreMode, selectedNodeId]);
+  }, [isExploreMode, isDrawingMode, selectedNodeId, handleUndo]);
 
   const handleNodeClick = useCallback((nodeId: string) => {
     setSelectedNodeId(prev => (prev === nodeId ? null : nodeId));
@@ -136,11 +189,11 @@ function GraphPageContent() {
   const panelWidth = showPanel && !isMobile ? 360 : 0;
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--bg)' }}>
+    <div className="h-screen flex flex-col overflow-hidden select-none" style={{ background: 'var(--bg)' }}>
       <Navigation />
 
       <div className="flex-1 relative overflow-hidden" style={{ marginTop: '64px' }}>
-        {/* Graph Area */}
+        {/* Graph & Drawing Area */}
         <div
           className="absolute inset-0 transition-all duration-300"
           style={{ right: panelWidth }}
@@ -153,6 +206,12 @@ function GraphPageContent() {
                 onNodeClick={handleNodeClick}
                 onCanvasClick={handleCanvasClick}
                 isExploreMode={isExploreMode}
+                isDrawingMode={isDrawingMode}
+                activeTool={activeTool}
+                activeColor={activeColor}
+                activeSize={activeSize}
+                strokes={strokes}
+                onStrokesChange={handleStrokesChange}
                 refreshKey={refreshKey}
               />
 
@@ -163,13 +222,34 @@ function GraphPageContent() {
                 nodeCount={nodes.length}
                 edgeCount={edges.length}
                 isExploreMode={isExploreMode}
-                onToggleExplore={() => setIsExploreMode(v => !v)}
+                onToggleExplore={() => {
+                  setIsExploreMode(v => !v);
+                  if (!isExploreMode) setIsDrawingMode(false);
+                }}
                 onCreateNode={() => setShowCreateNode(true)}
                 onDeleteIdea={() => {
                   deleteIdea(ideaId);
                   router.push('/');
                 }}
                 updatedAt={idea.updatedAt}
+              />
+
+              {/* Floating Sketch Toolbar */}
+              <DrawingToolbar
+                isDrawingMode={isDrawingMode}
+                onToggleDrawingMode={() => {
+                  setIsDrawingMode(v => !v);
+                  if (!isDrawingMode) setSelectedNodeId(null);
+                }}
+                activeTool={activeTool}
+                onSelectTool={setActiveTool}
+                activeColor={activeColor}
+                onSelectColor={setActiveColor}
+                activeSize={activeSize}
+                onSelectSize={setActiveSize}
+                onUndo={handleUndo}
+                onClear={handleClearDrawings}
+                canUndo={strokes.length > 0}
               />
             </div>
           </ReactFlowProvider>
