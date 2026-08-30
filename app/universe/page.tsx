@@ -8,6 +8,7 @@ import {
   BackgroundVariant,
   useNodesState,
   useEdgesState,
+  useReactFlow,
   Node,
   Edge,
 } from '@xyflow/react';
@@ -32,7 +33,7 @@ function UniverseNode({ data }: { data: Record<string, unknown> }) {
         background: 'var(--surface)',
         border: '1.5px solid var(--border)',
         boxShadow: '0 1px 4px rgba(0,0,0,0.03)',
-        minWidth: '170px',
+        width: '240px',
       }}
     >
       {/* Delete button on the top right */}
@@ -42,7 +43,7 @@ function UniverseNode({ data }: { data: Record<string, unknown> }) {
             e.stopPropagation();
             onDelete(ideaId, title);
           }}
-          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-red-50 text-[#9B3D3D]"
+          className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-red-50 text-[#9B3D3D]"
           title={`Delete ${title}`}
           aria-label={`Delete ${title}`}
         >
@@ -58,8 +59,9 @@ function UniverseNode({ data }: { data: Record<string, unknown> }) {
       </div>
 
       <div
-        className="font-serif text-lg font-medium group-hover:text-[#8A4938] transition-colors leading-tight mb-1"
+        className="font-serif text-lg font-medium group-hover:text-[#8A4938] transition-colors leading-tight mb-1 truncate px-1"
         style={{ color: 'var(--text-primary)' }}
+        title={title}
       >
         {title}
       </div>
@@ -76,6 +78,7 @@ const universeNodeTypes = { universeNode: UniverseNode };
 function UniverseContent() {
   const { ideas, deleteIdea } = useLoreGraph();
   const router = useRouter();
+  const { fitView } = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
@@ -87,14 +90,16 @@ function UniverseContent() {
 
   useEffect(() => {
     const cols = 3;
-    const spacingX = 260;
-    const spacingY = 220;
+    const cardWidth = 240;
+    const gapX = 60; // Clean, uniform 60px gap between every card
+    const spacingX = cardWidth + gapX; // 300px per column
+    const spacingY = 170; // 170px per row
 
     const flowNodes: Node[] = ideas.map((idea, i) => ({
       id: `idea-${idea.id}`,
       type: 'universeNode',
       position: {
-        x: (i % cols) * spacingX + (Math.floor(i / cols) % 2 === 0 ? 0 : spacingX / 2),
+        x: (i % cols) * spacingX,
         y: Math.floor(i / cols) * spacingY + 40,
       },
       data: {
@@ -131,7 +136,13 @@ function UniverseContent() {
 
     setNodes(flowNodes);
     setEdges(flowEdges);
-  }, [ideas, handleDeleteWorld, setNodes, setEdges]);
+
+    // Smooth fit view
+    const timer = setTimeout(() => {
+      fitView({ padding: 0.25, duration: 400 });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [ideas, handleDeleteWorld, setNodes, setEdges, fitView]);
 
   const handleNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
     const ideaId = (node.data as { ideaId?: string })?.ideaId;
@@ -187,7 +198,7 @@ function UniverseContent() {
             onNodeClick={handleNodeClick}
             nodeTypes={universeNodeTypes}
             fitView
-            fitViewOptions={{ padding: 0.2 }}
+            fitViewOptions={{ padding: 0.25 }}
             proOptions={{ hideAttribution: true }}
             style={{ background: 'var(--bg)' }}
           >
