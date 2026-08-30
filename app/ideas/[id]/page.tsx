@@ -94,6 +94,12 @@ function GraphPageContent() {
   }, [ideaId, updateNode]);
 
   const handleDeleteNode = useCallback((id: string) => {
+    const targetNode = nodes.find(n => n.id === id);
+    if (targetNode?.isRoot) {
+      deleteIdea(ideaId);
+      router.push('/');
+      return;
+    }
     deleteNode(id);
     const ideaEdges = edgeRepo.getAllByIdeaId(ideaId);
     ideaEdges.filter(e => e.source === id || e.target === id).forEach(e => edgeRepo.delete(e.id));
@@ -101,7 +107,7 @@ function GraphPageContent() {
     setNodes(nodeRepo.getAllByIdeaId(ideaId));
     setEdges(edgeRepo.getAllByIdeaId(ideaId));
     setRefreshKey(k => k + 1);
-  }, [ideaId, deleteNode]);
+  }, [ideaId, deleteNode, deleteIdea, nodes, router]);
 
   const handleNodeCreated = useCallback((nodeId: string) => {
     setNodes(nodeRepo.getAllByIdeaId(ideaId));

@@ -14,23 +14,43 @@ import {
 import '@xyflow/react/dist/style.css';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Globe } from 'lucide-react';
+import { ArrowLeft, Trash2 } from 'lucide-react';
 import { LoreGraphProvider, useLoreGraph } from '@/lib/context';
 import { Navigation } from '@/components/ui/Navigation';
 import { nodeRepo } from '@/lib/storage/repository';
 
 function UniverseNode({ data }: { data: Record<string, unknown> }) {
+  const title = data.title as string;
+  const nodeCount = data.nodeCount as number;
+  const ideaId = data.ideaId as string;
+  const onDelete = data.onDelete as ((id: string, title: string) => void) | undefined;
+
   return (
     <div
-      className="rounded-lg px-4 py-3 cursor-pointer hover:shadow-md transition-all text-center group"
+      className="relative rounded-lg px-5 py-4 cursor-pointer hover:shadow-md transition-all text-center group"
       style={{
         background: 'var(--surface)',
         border: '1.5px solid var(--border)',
         boxShadow: '0 1px 4px rgba(0,0,0,0.03)',
-        minWidth: '150px',
+        minWidth: '170px',
       }}
     >
-      <div className="flex items-center justify-center gap-1 mb-0.5">
+      {/* Delete button on the top right */}
+      {onDelete && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(ideaId, title);
+          }}
+          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-red-50 text-[#9B3D3D]"
+          title={`Delete ${title}`}
+          aria-label={`Delete ${title}`}
+        >
+          <Trash2 size={13} />
+        </button>
+      )}
+
+      <div className="flex items-center justify-center gap-1 mb-1">
         <span style={{ color: 'var(--accent-rust)', fontSize: '11px' }}>✻</span>
         <span className="font-mono text-[9px] uppercase tracking-widest" style={{ color: 'var(--accent-rust)' }}>
           WORLD
@@ -38,14 +58,14 @@ function UniverseNode({ data }: { data: Record<string, unknown> }) {
       </div>
 
       <div
-        className="font-serif text-base font-medium group-hover:text-[#8A4938] transition-colors leading-tight"
+        className="font-serif text-lg font-medium group-hover:text-[#8A4938] transition-colors leading-tight mb-1"
         style={{ color: 'var(--text-primary)' }}
       >
-        {data.title as string}
+        {title}
       </div>
 
-      <div className="font-mono text-[10px] mt-1" style={{ color: 'var(--text-tertiary)' }}>
-        {data.nodeCount as number} ideas
+      <div className="font-mono text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+        {nodeCount} {nodeCount === 1 ? 'idea' : 'ideas'}
       </div>
     </div>
   );
@@ -54,10 +74,16 @@ function UniverseNode({ data }: { data: Record<string, unknown> }) {
 const universeNodeTypes = { universeNode: UniverseNode };
 
 function UniverseContent() {
-  const { ideas } = useLoreGraph();
+  const { ideas, deleteIdea } = useLoreGraph();
   const router = useRouter();
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+
+  const handleDeleteWorld = useCallback((id: string, title: string) => {
+    if (window.confirm(`Are you sure you want to delete "${title}" and all its ideas?`)) {
+      deleteIdea(id);
+    }
+  }, [deleteIdea]);
 
   useEffect(() => {
     const cols = 3;
@@ -75,6 +101,7 @@ function UniverseContent() {
         title: idea.title,
         nodeCount: nodeRepo.getAllByIdeaId(idea.id).length,
         ideaId: idea.id,
+        onDelete: handleDeleteWorld,
       },
     }));
 
@@ -104,7 +131,7 @@ function UniverseContent() {
 
     setNodes(flowNodes);
     setEdges(flowEdges);
-  }, [ideas, setNodes, setEdges]);
+  }, [ideas, handleDeleteWorld, setNodes, setEdges]);
 
   const handleNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
     const ideaId = (node.data as { ideaId?: string })?.ideaId;
@@ -147,7 +174,7 @@ function UniverseContent() {
             className="pointer-events-auto text-xs font-mono hidden sm:inline"
             style={{ color: 'var(--text-tertiary)' }}
           >
-            {ideas.length} Worlds · Connected by shared themes
+            {ideas.length} Worlds · Hover card to delete or click to explore
           </span>
         </div>
 

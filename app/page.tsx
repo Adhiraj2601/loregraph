@@ -207,14 +207,14 @@ function HomePageContent() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (window.confirm(`Delete the world "${idea.title}" and all its branches?`)) {
+                            if (window.confirm(`Are you sure you want to delete the world "${idea.title}" and all its ideas?`)) {
                               deleteIdea(idea.id);
                             }
                           }}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-[#9B3D3D] p-1"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 text-[#9B3D3D] px-2 py-1 rounded text-[11px] font-mono border border-transparent hover:border-red-200"
                           title="Delete world"
                         >
-                          ×
+                          Delete
                         </button>
                       </div>
                     </div>

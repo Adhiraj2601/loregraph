@@ -355,17 +355,17 @@ export function NodeDetailPanel({
                 className="px-3 py-1.5 rounded text-xs font-mono transition-colors"
                 style={{ background: 'var(--danger)', color: '#FFFFFF' }}
               >
-                Confirm Delete
+                {node.isRoot ? 'Confirm Delete World' : 'Confirm Delete'}
               </button>
             ) : (
               <button
                 onClick={() => setConfirmDelete(true)}
                 className="px-2.5 py-1.5 rounded text-xs font-mono transition-colors hover:bg-[#ECE8DF] flex items-center gap-1 text-[#9B3D3D]"
                 style={{ border: '1px solid var(--border-light)' }}
-                title="Delete this idea"
+                title={node.isRoot ? "Delete this entire world" : "Delete this idea"}
               >
                 <Trash2 size={12} />
-                <span>Delete</span>
+                <span>{node.isRoot ? 'Delete World' : 'Delete'}</span>
               </button>
             )}
           </>
