@@ -150,6 +150,7 @@ function toFlowNodes(loreNodes: LoreNode[], selectedId?: string, isExplore?: boo
       type: n.type,
       isRoot: n.isRoot,
       tags: n.tags,
+      strokes: n.strokes,
       isDimmed: false,
     } satisfies LoreNodeData,
     selected: n.id === selectedId,

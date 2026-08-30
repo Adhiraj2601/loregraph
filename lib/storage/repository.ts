@@ -121,6 +121,7 @@ export async function syncFromSupabase(): Promise<boolean> {
         type: n.type,
         tags: Array.isArray(n.tags) ? n.tags : [],
         position: n.position || { x: 300, y: 200 },
+        strokes: n.strokes || [],
         isRoot: n.is_root,
         createdAt: n.created_at,
         updatedAt: n.updated_at,
@@ -278,6 +279,7 @@ export class LocalNodeRepository implements INodeRepository {
         type: node.type,
         tags: node.tags,
         position: node.position,
+        strokes: node.strokes || [],
         is_root: node.isRoot || false,
         created_at: node.createdAt,
         updated_at: node.updatedAt,
@@ -306,6 +308,7 @@ export class LocalNodeRepository implements INodeRepository {
         type: updated.type,
         tags: updated.tags,
         position: updated.position,
+        strokes: updated.strokes || [],
         updated_at: updated.updatedAt,
       }).eq('id', id).then(({ error }) => { if (error) console.error('Cloud node update error:', error); });
     }

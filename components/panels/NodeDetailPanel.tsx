@@ -1,13 +1,235 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Edit3, Trash2, Copy, Focus, Tag, Plus, Check, Link2, Unlink } from 'lucide-react';
+import { X, Edit3, Trash2, Focus, Plus, Check, PenTool, Highlighter, Eraser, RotateCcw } from 'lucide-react';
+import { getStroke } from 'perfect-freehand';
 import { LoreNode } from '@/types/node';
 import { LoreEdge } from '@/types/edge';
+import { DrawingStroke, DrawingTool } from '@/types/drawing';
 import { NODE_TYPE_CONFIG, NODE_TYPES_LIST } from '@/lib/nodeTypes';
-import { formatDate, formatRelativeTime } from '@/lib/utils';
+import { formatDate, formatRelativeTime, generateId } from '@/lib/utils';
 import { edgeRepo } from '@/lib/storage/repository';
+import { getSvgPathFromStroke } from '@/components/graph/DrawingCanvas';
+
+// ─── Embedded Node Sketchpad ──────────────────────────────────────────────────
+
+const SKETCH_PALETTE = [
+  { name: 'Charcoal', color: '#171717' },
+  { name: 'Rust', color: '#8A4938' },
+  { name: 'Slate', color: '#596A72' },
+  { name: 'Ochre', color: '#9E6B47' },
+  { name: 'Sage', color: '#657560' },
+];
+
+function NodeSketchpad({
+  nodeId,
+  strokes = [],
+  onChangeStrokes,
+}: {
+  nodeId: string;
+  strokes: DrawingStroke[];
+  onChangeStrokes: (strokes: DrawingStroke[]) => void;
+}) {
+  const [tool, setTool] = useState<DrawingTool>('pen');
+  const [color, setColor] = useState('#8A4938');
+  const [size, setSize] = useState(4);
+  const [currentPoints, setCurrentPoints] = useState<number[][] | null>(null);
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const isDownRef = useRef(false);
+
+  const getPoint = (e: React.PointerEvent) => {
+    if (!svgRef.current) return null;
+    const rect = svgRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const pressure = e.pressure && e.pressure > 0 ? e.pressure : 0.5;
+    return [x, y, pressure];
+  };
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    e.stopPropagation();
+    const pt = getPoint(e);
+    if (!pt) return;
+    isDownRef.current = true;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+
+    if (tool === 'eraser') {
+      const radius = size * 5;
+      const remaining = strokes.filter(s => !s.points.some(([px, py]) => Math.hypot(px - pt[0], py - pt[1]) < radius));
+      if (remaining.length !== strokes.length) onChangeStrokes(remaining);
+      return;
+    }
+
+    setCurrentPoints([pt]);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isDownRef.current) return;
+    const pt = getPoint(e);
+    if (!pt) return;
+
+    if (tool === 'eraser') {
+      const radius = size * 5;
+      const remaining = strokes.filter(s => !s.points.some(([px, py]) => Math.hypot(px - pt[0], py - pt[1]) < radius));
+      if (remaining.length !== strokes.length) onChangeStrokes(remaining);
+      return;
+    }
+
+    setCurrentPoints(pts => (pts ? [...pts, pt] : [pt]));
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (!isDownRef.current) return;
+    isDownRef.current = false;
+    try { (e.target as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+
+    if (currentPoints && currentPoints.length > 0 && tool !== 'eraser') {
+      const newStroke: DrawingStroke = {
+        id: generateId(),
+        ideaId: nodeId,
+        points: currentPoints,
+        color,
+        size,
+        tool,
+        opacity: tool === 'highlighter' ? 0.35 : 0.95,
+        createdAt: new Date().toISOString(),
+      };
+      onChangeStrokes([...strokes, newStroke]);
+    }
+    setCurrentPoints(null);
+  };
+
+  const handleUndo = () => {
+    if (strokes.length === 0) return;
+    onChangeStrokes(strokes.slice(0, -1));
+  };
+
+  const handleClear = () => {
+    if (window.confirm('Clear sketchpad for this idea?')) {
+      onChangeStrokes([]);
+    }
+  };
+
+  return (
+    <div className="rounded-lg border overflow-hidden" style={{ borderColor: 'var(--border)', background: '#FAF8F4' }}>
+      {/* Mini Sketchpad Controls Header */}
+      <div className="flex items-center justify-between px-3 py-2 border-b bg-[var(--surface)]" style={{ borderColor: 'var(--border-light)' }}>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setTool('pen')}
+            className={`p-1.5 rounded transition-colors ${tool === 'pen' ? 'bg-[#ECE8DF] text-[#8A4938]' : 'text-[#73716B]'}`}
+            title="Pen"
+          >
+            <PenTool size={13} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setTool('highlighter')}
+            className={`p-1.5 rounded transition-colors ${tool === 'highlighter' ? 'bg-[#ECE8DF] text-[#8A4938]' : 'text-[#73716B]'}`}
+            title="Highlighter"
+          >
+            <Highlighter size={13} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setTool('eraser')}
+            className={`p-1.5 rounded transition-colors ${tool === 'eraser' ? 'bg-[#ECE8DF] text-[#8A4938]' : 'text-[#73716B]'}`}
+            title="Eraser"
+          >
+            <Eraser size={13} />
+          </button>
+        </div>
+
+        {/* Color Palette */}
+        {tool !== 'eraser' && (
+          <div className="flex items-center gap-1">
+            {SKETCH_PALETTE.map(p => (
+              <button
+                key={p.name}
+                type="button"
+                onClick={() => setColor(p.color)}
+                className="w-4 h-4 rounded-full border transition-transform"
+                style={{
+                  background: p.color,
+                  borderColor: color === p.color ? '#8A4938' : 'transparent',
+                  transform: color === p.color ? 'scale(1.2)' : 'scale(1)',
+                }}
+                title={p.name}
+              />
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={handleUndo}
+            disabled={strokes.length === 0}
+            className="p-1 rounded text-[#73716B] hover:text-[#171717] disabled:opacity-30"
+            title="Undo"
+          >
+            <RotateCcw size={12} />
+          </button>
+          <button
+            type="button"
+            onClick={handleClear}
+            disabled={strokes.length === 0}
+            className="p-1 rounded text-[#9B3D3D] hover:bg-red-50 disabled:opacity-30"
+            title="Clear"
+          >
+            <Trash2 size={12} />
+          </button>
+        </div>
+      </div>
+
+      {/* Drawing Canvas Area */}
+      <svg
+        ref={svgRef}
+        className="w-full h-52 cursor-crosshair touch-none select-none"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+      >
+        {/* Render Saved Strokes */}
+        {strokes.map(s => {
+          const outline = getStroke(s.points, {
+            size: s.tool === 'highlighter' ? s.size * 2.5 : s.size,
+            thinning: 0.35,
+            smoothing: 0.6,
+            streamline: 0.5,
+          });
+          return (
+            <path
+              key={s.id}
+              d={getSvgPathFromStroke(outline)}
+              fill={s.color}
+              opacity={s.opacity ?? (s.tool === 'highlighter' ? 0.35 : 0.95)}
+            />
+          );
+        })}
+
+        {/* Live Active Stroke */}
+        {currentPoints && currentPoints.length > 0 && tool !== 'eraser' && (
+          <path
+            d={getSvgPathFromStroke(getStroke(currentPoints, {
+              size: tool === 'highlighter' ? size * 2.5 : size,
+              thinning: 0.35,
+              smoothing: 0.6,
+              streamline: 0.5,
+            }))}
+            fill={color}
+            opacity={tool === 'highlighter' ? 0.35 : 0.95}
+          />
+        )}
+      </svg>
+    </div>
+  );
+}
+
+// ─── Main Node Detail Panel ──────────────────────────────────────────────────
 
 interface NodeDetailPanelProps {
   node: LoreNode;
@@ -113,6 +335,10 @@ export function NodeDetailPanel({
     onUpdate(node.id, {}); // Trigger refresh
   };
 
+  const handleStrokesUpdate = (newStrokes: DrawingStroke[]) => {
+    onUpdate(node.id, { strokes: newStrokes });
+  };
+
   return (
     <div
       className="h-full flex flex-col overflow-hidden"
@@ -200,6 +426,24 @@ export function NodeDetailPanel({
           </div>
         )}
 
+        {/* Embedded Artwork / Sketchpad */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+              {node.type === 'SKETCH' ? 'Artwork & Diagram' : 'Attached Sketch'}
+            </span>
+            <span className="text-[10px] font-mono" style={{ color: 'var(--accent-rust)' }}>
+              {node.strokes && node.strokes.length > 0 ? `${node.strokes.length} strokes` : 'Draw below'}
+            </span>
+          </div>
+
+          <NodeSketchpad
+            nodeId={node.id}
+            strokes={node.strokes || []}
+            onChangeStrokes={handleStrokesUpdate}
+          />
+        </div>
+
         {/* Description / Manuscript */}
         <div>
           <div className="flex items-center justify-between mb-2">
@@ -222,7 +466,7 @@ export function NodeDetailPanel({
             <textarea
               value={editDesc}
               onChange={e => setEditDesc(e.target.value)}
-              rows={6}
+              rows={5}
               className="w-full p-3 text-xs font-serif leading-relaxed bg-transparent border rounded focus:outline-none focus:border-[#8A4938] resize-none"
               style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
               placeholder="Record details, history, capabilities, or secrets..."
@@ -329,7 +573,7 @@ export function NodeDetailPanel({
                   type="text"
                   value={relationshipText}
                   onChange={e => setRelationshipText(e.target.value)}
-                  placeholder="e.g. allied with, created by, located in"
+                  placeholder="e.g. anatomy of, map of, allied with"
                   className="w-full px-2 py-1 text-xs rounded border bg-[var(--surface)] focus:outline-none focus:border-[#8A4938]"
                   style={{ borderColor: 'var(--border)' }}
                 />

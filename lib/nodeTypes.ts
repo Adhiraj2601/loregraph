@@ -1,6 +1,6 @@
 import { NodeType } from '@/types/node';
 import {
-  Sparkles, User, MapPin, Zap, Wand2, Calendar, Users, Box, ScrollText, Lightbulb, CircleHelp, Globe,
+  Sparkles, User, MapPin, Zap, Wand2, Calendar, Users, Box, ScrollText, Lightbulb, CircleHelp, Globe, PenTool,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -58,25 +58,25 @@ export const NODE_TYPE_CONFIG: Record<NodeType, NodeTypeConfig> = {
     label: 'Magic',
     icon: Wand2,
     symbol: '✦',
-    color: '#7B5E7B', // muted plum
-    bg: 'rgba(123, 94, 123, 0.08)',
-    border: 'rgba(123, 94, 123, 0.25)',
+    color: '#8A4938', // rust
+    bg: 'rgba(138, 73, 56, 0.08)',
+    border: 'rgba(138, 73, 56, 0.25)',
   },
   EVENT: {
     label: 'Event',
     icon: Calendar,
     symbol: '■',
-    color: '#8A4938', // rust
-    bg: 'rgba(138, 73, 56, 0.08)',
-    border: 'rgba(138, 73, 56, 0.25)',
+    color: '#7D5A68', // plum
+    bg: 'rgba(125, 90, 104, 0.08)',
+    border: 'rgba(125, 90, 104, 0.25)',
   },
   FACTION: {
     label: 'Faction',
     icon: Users,
-    symbol: '⬟',
-    color: '#4B6B75', // deep teal
-    bg: 'rgba(75, 107, 117, 0.08)',
-    border: 'rgba(75, 107, 117, 0.25)',
+    symbol: '▼',
+    color: '#5B6E68', // forest slate
+    bg: 'rgba(91, 110, 104, 0.08)',
+    border: 'rgba(91, 110, 104, 0.25)',
   },
   OBJECT: {
     label: 'Object',
@@ -110,9 +110,17 @@ export const NODE_TYPE_CONFIG: Record<NodeType, NodeTypeConfig> = {
     bg: 'rgba(162, 158, 149, 0.08)',
     border: 'rgba(162, 158, 149, 0.25)',
   },
+  SKETCH: {
+    label: 'Sketch & Diagram',
+    icon: PenTool,
+    symbol: '✎',
+    color: '#9E6B47', // ochre / warm leather
+    bg: 'rgba(158, 107, 71, 0.08)',
+    border: 'rgba(158, 107, 71, 0.25)',
+  },
 };
 
 export const NODE_TYPES_LIST: NodeType[] = [
-  'CREATURE', 'CHARACTER', 'LOCATION', 'ABILITY', 'MAGIC',
+  'SKETCH', 'CREATURE', 'CHARACTER', 'LOCATION', 'ABILITY', 'MAGIC',
   'EVENT', 'FACTION', 'OBJECT', 'LORE', 'CONCEPT', 'QUESTION'
 ];

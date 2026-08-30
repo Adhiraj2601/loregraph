@@ -1,3 +1,5 @@
+import { DrawingStroke } from './drawing';
+
 export type NodeType =
   | 'CREATURE'
   | 'CHARACTER'
@@ -10,6 +12,7 @@ export type NodeType =
   | 'LORE'
   | 'CONCEPT'
   | 'QUESTION'
+  | 'SKETCH'
   | 'ROOT';
 
 export interface LoreNode {
@@ -20,6 +23,7 @@ export interface LoreNode {
   type: NodeType;
   tags: string[];
   position: { x: number; y: number };
+  strokes?: DrawingStroke[];
   createdAt: string;
   updatedAt: string;
   isRoot?: boolean;
@@ -32,5 +36,6 @@ export interface CreateNodeInput {
   type: NodeType;
   tags: string[];
   position?: { x: number; y: number };
+  strokes?: DrawingStroke[];
   isRoot?: boolean;
 }
