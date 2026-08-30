@@ -24,29 +24,53 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
 
   return (
     <div
-      className="relative transition-all duration-200"
+      className="relative transition-all duration-200 group"
       style={{
         opacity: isDimmed ? 0.25 : 1,
       }}
     >
-      {/* React Flow Connection Handles (almost invisible) */}
-      <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
-      <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
-      <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
-      <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
+      {/* Visible Interactive Connection Handles */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="target-top"
+        className="!w-2.5 !h-2.5 !bg-[#FCFAF7] !border-[1.5px] !border-[#8A4938] opacity-0 group-hover:opacity-100 transition-all hover:!scale-150"
+        style={{ top: '-5px' }}
+      />
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="target-left"
+        className="!w-2.5 !h-2.5 !bg-[#FCFAF7] !border-[1.5px] !border-[#8A4938] opacity-0 group-hover:opacity-100 transition-all hover:!scale-150"
+        style={{ left: '-5px' }}
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="source-right"
+        className="!w-2.5 !h-2.5 !bg-[#FCFAF7] !border-[1.5px] !border-[#8A4938] opacity-0 group-hover:opacity-100 transition-all hover:!scale-150"
+        style={{ right: '-5px' }}
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="source-bottom"
+        className="!w-2.5 !h-2.5 !bg-[#FCFAF7] !border-[1.5px] !border-[#8A4938] opacity-0 group-hover:opacity-100 transition-all hover:!scale-150"
+        style={{ bottom: '-5px' }}
+      />
 
       {isRoot ? (
         /* ─── ROOT WORLD NODE ─── */
         <div
-          className="relative px-3.5 py-2 rounded-md transition-all cursor-pointer select-none group text-center"
+          className="relative px-4 py-2.5 rounded-md transition-all cursor-pointer select-none text-center"
           style={{
-            background: selected ? 'var(--surface)' : 'rgba(252, 250, 247, 0.9)',
+            background: selected ? 'var(--surface)' : 'rgba(252, 250, 247, 0.95)',
             border: `1.5px solid ${selected ? 'var(--accent-rust)' : 'var(--border)'}`,
             boxShadow: selected
               ? '0 0 0 3px rgba(138, 73, 56, 0.12), 0 2px 8px rgba(0,0,0,0.04)'
               : '0 1px 4px rgba(0,0,0,0.03)',
-            minWidth: '130px',
-            maxWidth: '200px',
+            minWidth: '140px',
+            maxWidth: '220px',
           }}
         >
           <div className="flex items-center justify-center gap-1.5 mb-0.5">
@@ -57,7 +81,7 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
               ✻
             </span>
             <span
-              className="font-mono text-[9px] uppercase tracking-widest"
+              className="font-mono text-[9px] uppercase tracking-widest font-semibold"
               style={{ color: 'var(--accent-rust)', letterSpacing: '0.15em' }}
             >
               WORLD
@@ -65,7 +89,7 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
           </div>
 
           <div
-            className="font-serif text-sm sm:text-base font-medium leading-tight"
+            className="font-serif text-base sm:text-lg font-medium leading-tight truncate px-1"
             style={{ color: 'var(--text-primary)' }}
           >
             {nodeData.title}
@@ -74,24 +98,24 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
       ) : (
         /* ─── NOTEBOOK DIAGRAM CHILD NODE ─── */
         <div
-          className="relative px-2.5 py-1.5 rounded transition-all cursor-pointer select-none group flex items-baseline gap-1.5"
+          className="relative px-3 py-2 rounded transition-all cursor-pointer select-none flex items-baseline gap-2"
           style={{
-            background: selected ? 'var(--surface)' : 'rgba(244, 241, 234, 0.85)',
-            border: `1px solid ${selected ? 'var(--accent-rust)' : 'transparent'}`,
-            boxShadow: selected ? '0 0 0 2px rgba(138, 73, 56, 0.15)' : 'none',
-            maxWidth: '170px',
+            background: selected ? 'var(--surface)' : 'rgba(252, 250, 247, 0.9)',
+            border: `1px solid ${selected ? 'var(--accent-rust)' : 'var(--border)'}`,
+            boxShadow: selected ? '0 0 0 2px rgba(138, 73, 56, 0.15), 0 1px 4px rgba(0,0,0,0.03)' : '0 1px 3px rgba(0,0,0,0.02)',
+            maxWidth: '190px',
           }}
         >
           {/* Subtle category symbol / dot */}
           <span
-            className="text-[10px] flex-shrink-0"
+            className="text-[11px] flex-shrink-0"
             style={{ color: config.color }}
           >
             {config.symbol}
           </span>
 
           <span
-            className="text-xs font-normal leading-snug group-hover:text-[#8A4938] transition-colors"
+            className="text-xs font-normal leading-snug group-hover:text-[#8A4938] transition-colors truncate"
             style={{
               color: selected ? 'var(--text-primary)' : '#2D2B29',
               fontWeight: selected ? 500 : 400,
