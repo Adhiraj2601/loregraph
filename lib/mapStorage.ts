@@ -8,12 +8,10 @@ const localKey = (ideaId: string) => `loregraph:map:${ideaId}`;
 // ─── Upload map image to Supabase Storage ─────────────────────────────────────
 
 export async function uploadWorldMap(ideaId: string, file: File): Promise<string | null> {
-  // Build a deterministic path so re-uploads replace the previous file
   const ext = file.name.split('.').pop() ?? 'png';
   const path = `${ideaId}/map.${ext}`;
 
   if (!supabase) {
-    // Fallback: store as an object URL in sessionStorage only
     const localUrl = URL.createObjectURL(file);
     sessionStorage.setItem(localKey(ideaId), localUrl);
     return localUrl;
@@ -26,7 +24,6 @@ export async function uploadWorldMap(ideaId: string, file: File): Promise<string
 
     if (error) {
       console.error('Map upload error:', error.message);
-      // Fallback to session URL so the user isn't blocked
       const localUrl = URL.createObjectURL(file);
       sessionStorage.setItem(localKey(ideaId), localUrl);
       return localUrl;
@@ -35,7 +32,6 @@ export async function uploadWorldMap(ideaId: string, file: File): Promise<string
     const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
     const publicUrl = data.publicUrl;
 
-    // Cache locally so we don't hit the network on every page load
     localStorage.setItem(localKey(ideaId), publicUrl);
     return publicUrl;
   } catch (err) {
@@ -44,29 +40,29 @@ export async function uploadWorldMap(ideaId: string, file: File): Promise<string
   }
 }
 
-// ─── Load map URL (local cache first, then Supabase) ─────────────────────────
+// ─── Load map URL (local cache first, then Supabase Storage list) ──────────────
 
 export async function loadWorldMap(ideaId: string): Promise<string | null> {
   // 1. Try localStorage cache first (instant)
   const cached = localStorage.getItem(localKey(ideaId));
   if (cached) return cached;
 
-  // 2. Try sessionStorage (blob URLs from when Supabase isn't configured)
+  // 2. Try sessionStorage (fallback for non-supabase runs)
   const session = sessionStorage.getItem(localKey(ideaId));
   if (session) return session;
 
-  // 3. Fall back to constructing the Supabase public URL directly
+  // 3. Query Supabase Storage via official SDK listing (avoids browser CORS issues)
   if (!supabase) return null;
   try {
-    // Try both .png and .jpg since we don't know the extension
-    for (const ext of ['png', 'jpg', 'jpeg', 'svg', 'webp']) {
-      const path = `${ideaId}/map.${ext}`;
-      const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-      // Check if it actually exists via HEAD request
-      const res = await fetch(data.publicUrl, { method: 'HEAD' });
-      if (res.ok) {
-        localStorage.setItem(localKey(ideaId), data.publicUrl);
-        return data.publicUrl;
+    const { data: files, error } = await supabase.storage.from(BUCKET).list(ideaId);
+    if (!error && files && files.length > 0) {
+      const mapFile = files.find(f => f.name.startsWith('map.'));
+      if (mapFile) {
+        const { data } = supabase.storage.from(BUCKET).getPublicUrl(`${ideaId}/${mapFile.name}`);
+        if (data?.publicUrl) {
+          localStorage.setItem(localKey(ideaId), data.publicUrl);
+          return data.publicUrl;
+        }
       }
     }
   } catch (err) {
@@ -84,9 +80,11 @@ export async function removeWorldMap(ideaId: string): Promise<void> {
 
   if (!supabase) return;
   try {
-    // Attempt to delete all known extensions
-    const paths = ['png', 'jpg', 'jpeg', 'svg', 'webp'].map(ext => `${ideaId}/map.${ext}`);
-    await supabase.storage.from(BUCKET).remove(paths);
+    const { data: files } = await supabase.storage.from(BUCKET).list(ideaId);
+    if (files && files.length > 0) {
+      const paths = files.map(f => `${ideaId}/${f.name}`);
+      await supabase.storage.from(BUCKET).remove(paths);
+    }
   } catch (err) {
     console.error('Map remove error:', err);
   }

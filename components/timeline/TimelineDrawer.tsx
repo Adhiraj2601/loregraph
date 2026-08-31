@@ -252,12 +252,12 @@ export function TimelineDrawer({
         {/* Scrollable Timeline Canvas */}
         <div
           ref={scrollContainerRef}
-          className="flex-1 overflow-x-auto overflow-y-hidden p-6 relative select-none"
+          className="flex-1 overflow-x-auto overflow-y-hidden px-6 py-4 relative select-none"
           style={{ background: 'var(--surface)' }}
         >
           <div className="relative h-full" style={{ width: `${trackWidth}px`, minWidth: '100%' }}>
             {/* 1. ERA BANDS (Top Track) */}
-            <div className="h-9 relative mb-4">
+            <div className="h-8 relative mb-3">
               {eras.length > 0 ? (
                 eras.map(era => {
                   const leftPercent = Math.max(0, getXPercent(era.startYear));
@@ -268,7 +268,7 @@ export function TimelineDrawer({
                     <div
                       key={era.id}
                       onClick={() => { setEditingEra(era); setShowCreateEra(true); }}
-                      className="absolute top-0 h-8 rounded-md px-2.5 flex items-center justify-between cursor-pointer border group transition-all hover:brightness-95 shadow-sm"
+                      className="absolute top-0 h-7 rounded px-2.5 flex items-center justify-between cursor-pointer border group transition-all hover:brightness-95 shadow-sm"
                       style={{
                         left: `${leftPercent}%`,
                         width: `${widthPercent}%`,
@@ -300,7 +300,7 @@ export function TimelineDrawer({
                   );
                 })
               ) : (
-                <div className="h-8 border border-dashed rounded-md flex items-center justify-center gap-2 text-xs font-serif italic text-[#73716B]">
+                <div className="h-7 border border-dashed rounded flex items-center justify-center gap-2 text-xs font-serif italic text-[#73716B]">
                   <span>No epochs defined yet.</span>
                   <button
                     onClick={() => { setEditingEra(undefined); setShowCreateEra(true); }}
@@ -313,19 +313,28 @@ export function TimelineDrawer({
             </div>
 
             {/* 2. RULER AXIS & TICKS */}
-            <div className="relative h-4 border-t border-b flex items-center" style={{ borderColor: 'var(--border)' }}>
-              {/* Generate 8 to 12 milestone tick marks */}
+            <div className="relative h-8 my-1">
+              {/* Single clean horizontal axis baseline */}
+              <div
+                className="absolute left-0 right-0 top-2 h-[1px]"
+                style={{ background: 'var(--border)' }}
+              />
+
+              {/* Milestone tick marks & centered year numbers */}
               {Array.from({ length: 9 }).map((_, i) => {
                 const fraction = i / 8;
                 const year = Math.round(minYear + yearSpan * fraction);
                 return (
                   <div
                     key={i}
-                    className="absolute top-0 bottom-0 flex flex-col items-center justify-center pointer-events-none"
+                    className="absolute top-1 -translate-x-1/2 flex flex-col items-center pointer-events-none"
                     style={{ left: `${fraction * 100}%` }}
                   >
-                    <div className="w-px h-2 bg-gray-400" />
-                    <span className="text-[9px] font-mono mt-3" style={{ color: 'var(--text-tertiary)' }}>
+                    <div className="w-[1.5px] h-2.5 bg-[#A29E95]" />
+                    <span
+                      className="text-[10px] font-mono select-none mt-1 font-medium"
+                      style={{ color: 'var(--text-secondary)' }}
+                    >
                       {year}
                     </span>
                   </div>
@@ -334,32 +343,35 @@ export function TimelineDrawer({
             </div>
 
             {/* 3. PLOTTED NODE PINS & CARDS (Bottom Track) */}
-            <div className="relative h-16 mt-4">
+            <div className="relative h-20 mt-2">
               {scheduledNodes.length > 0 ? (
-                scheduledNodes.map(node => {
+                scheduledNodes.map((node, idx) => {
                   const conf = NODE_TYPE_CONFIG[node.type] ?? NODE_TYPE_CONFIG.CONCEPT;
                   const xPercent = getXPercent(node.year ?? minYear);
+                  const topOffset = (idx % 2) * 26;
 
                   return (
                     <div
                       key={node.id}
                       onClick={() => onSelectNode(node.id)}
-                      className="absolute top-0 -translate-x-1/2 group cursor-pointer"
-                      style={{ left: `${xPercent}%` }}
+                      className="absolute -translate-x-1/2 group cursor-pointer transition-all hover:z-20"
+                      style={{
+                        left: `${xPercent}%`,
+                        top: `${topOffset}px`,
+                      }}
                     >
                       {/* Vertical connector tick */}
-                      <div className="w-px h-3 bg-[#8A4938] mx-auto opacity-40 group-hover:opacity-100 transition-opacity" />
+                      <div className="w-[1.5px] h-2 bg-[#8A4938] mx-auto opacity-50 group-hover:opacity-100 transition-opacity" />
 
                       {/* Plotted Node Card */}
                       <div
-                        className="px-2.5 py-1 rounded border shadow-sm flex items-center gap-1.5 transition-all hover:scale-105 hover:shadow-md"
+                        className="px-2.5 py-1 rounded border shadow-sm flex items-center gap-1.5 transition-all hover:scale-105 hover:shadow-md bg-[var(--surface)]"
                         style={{
-                          background: 'var(--surface)',
                           borderColor: conf.color,
                         }}
                       >
                         <span className="text-xs" style={{ color: conf.color }}>{conf.symbol}</span>
-                        <div className="flex flex-col min-w-0 max-w-[120px]">
+                        <div className="flex flex-col min-w-0 max-w-[130px]">
                           <span className="font-serif text-xs font-medium leading-tight truncate" style={{ color: 'var(--text-primary)' }}>
                             {node.title}
                           </span>

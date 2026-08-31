@@ -66,7 +66,23 @@ function GraphPageContent() {
     const foundIdea = ideaRepo.getById(ideaId);
     if (!foundIdea) { router.push('/'); return; }
     setIdea(foundIdea);
-    setNodes(nodeRepo.getAllByIdeaId(ideaId));
+
+    const currentNodes = nodeRepo.getAllByIdeaId(ideaId);
+    if (currentNodes.length > 0 && !currentNodes.some(n => n.isRoot)) {
+      const rootNode = nodeRepo.create({
+        ideaId: foundIdea.id,
+        title: foundIdea.title,
+        description: foundIdea.description,
+        type: 'ROOT',
+        tags: foundIdea.tags,
+        position: { x: 380, y: 260 },
+        isRoot: true,
+      });
+      setNodes([...currentNodes, rootNode]);
+    } else {
+      setNodes(currentNodes);
+    }
+
     setEdges(edgeRepo.getAllByIdeaId(ideaId));
     setStrokes(drawingRepo.getAllByIdeaId(ideaId));
     setEras(eraRepo.getAllByIdeaId(ideaId));

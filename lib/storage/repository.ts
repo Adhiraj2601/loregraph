@@ -120,22 +120,27 @@ export async function syncFromSupabase(): Promise<boolean> {
     const localDrawings = safeGet<DrawingStroke[]>(KEYS.DRAWINGS, []);
     const localEras = safeGet<Era[]>(KEYS.ERAS, []);
 
-    // 1. Sync Ideas
-    if (ideasRes.data && ideasRes.data.length > 0) {
-      const cloudIdeas: Idea[] = ideasRes.data.map(i => ({
-        id: i.id,
-        title: i.title,
-        description: i.description || '',
-        tags: Array.isArray(i.tags) ? i.tags : [],
-        coverColor: i.cover_color,
-        createdAt: i.created_at,
-        updatedAt: i.updated_at,
-      }));
-      safeSet(KEYS.IDEAS, cloudIdeas);
-      markSeeded();
-    } else if (localIdeas.length > 0) {
+    // 1. Sync Ideas (Union Merge)
+    const cloudIdeas: Idea[] = (ideasRes.data || []).map(i => ({
+      id: i.id,
+      title: i.title,
+      description: i.description || '',
+      tags: Array.isArray(i.tags) ? i.tags : [],
+      coverColor: i.cover_color,
+      createdAt: i.created_at,
+      updatedAt: i.updated_at,
+    }));
+    const mergedIdeasMap = new Map<string, Idea>();
+    localIdeas.forEach(i => mergedIdeasMap.set(i.id, i));
+    cloudIdeas.forEach(i => mergedIdeasMap.set(i.id, i));
+    const finalIdeas = Array.from(mergedIdeasMap.values());
+    safeSet(KEYS.IDEAS, finalIdeas);
+    if (finalIdeas.length > 0) markSeeded();
+
+    const missingCloudIdeas = localIdeas.filter(li => !cloudIdeas.some(ci => ci.id === li.id));
+    if (missingCloudIdeas.length > 0) {
       supabase.from('ideas').upsert(
-        localIdeas.map(i => ({
+        missingCloudIdeas.map(i => ({
           id: i.id,
           title: i.title,
           description: i.description,
@@ -147,29 +152,34 @@ export async function syncFromSupabase(): Promise<boolean> {
       ).then(() => {});
     }
 
-    // 2. Sync Nodes
-    if (nodesRes.data && nodesRes.data.length > 0) {
-      const cloudNodes: LoreNode[] = nodesRes.data.map(n => ({
-        id: n.id,
-        ideaId: n.idea_id,
-        title: n.title,
-        description: n.description || '',
-        type: n.type,
-        tags: Array.isArray(n.tags) ? n.tags : [],
-        position: n.position || { x: 300, y: 200 },
-        strokes: Array.isArray(n.strokes) ? n.strokes : [],
-        year: n.year ?? undefined,
-        endYear: n.end_year ?? n.endYear ?? undefined,
-        dateLabel: n.date_label ?? n.dateLabel ?? undefined,
-        eraId: n.era_id ?? n.eraId ?? undefined,
-        isRoot: n.is_root,
-        createdAt: n.created_at,
-        updatedAt: n.updated_at,
-      }));
-      safeSet(KEYS.NODES, cloudNodes);
-    } else if (localNodes.length > 0) {
+    // 2. Sync Nodes (Union Merge)
+    const cloudNodes: LoreNode[] = (nodesRes.data || []).map(n => ({
+      id: n.id,
+      ideaId: n.idea_id,
+      title: n.title,
+      description: n.description || '',
+      type: n.type,
+      tags: Array.isArray(n.tags) ? n.tags : [],
+      position: n.position || { x: 300, y: 200 },
+      strokes: Array.isArray(n.strokes) ? n.strokes : [],
+      year: n.year ?? undefined,
+      endYear: n.end_year ?? n.endYear ?? undefined,
+      dateLabel: n.date_label ?? n.dateLabel ?? undefined,
+      eraId: n.era_id ?? n.eraId ?? undefined,
+      isRoot: n.is_root,
+      createdAt: n.created_at,
+      updatedAt: n.updated_at,
+    }));
+    const mergedNodesMap = new Map<string, LoreNode>();
+    localNodes.forEach(n => mergedNodesMap.set(n.id, n));
+    cloudNodes.forEach(n => mergedNodesMap.set(n.id, n));
+    const finalNodes = Array.from(mergedNodesMap.values());
+    safeSet(KEYS.NODES, finalNodes);
+
+    const missingCloudNodes = localNodes.filter(ln => !cloudNodes.some(cn => cn.id === ln.id));
+    if (missingCloudNodes.length > 0) {
       supabase.from('nodes').upsert(
-        localNodes.map(n => ({
+        missingCloudNodes.map(n => ({
           id: n.id,
           idea_id: n.ideaId,
           title: n.title,
@@ -188,21 +198,26 @@ export async function syncFromSupabase(): Promise<boolean> {
       ).then(() => {});
     }
 
-    // 3. Sync Edges
-    if (edgesRes.data && edgesRes.data.length > 0) {
-      const cloudEdges: LoreEdge[] = edgesRes.data.map(e => ({
-        id: e.id,
-        ideaId: e.idea_id,
-        source: e.source,
-        target: e.target,
-        sourceHandle: e.source_handle || e.sourceHandle || null,
-        targetHandle: e.target_handle || e.targetHandle || null,
-        relationship: e.relationship,
-      }));
-      safeSet(KEYS.EDGES, cloudEdges);
-    } else if (localEdges.length > 0) {
+    // 3. Sync Edges (Union Merge)
+    const cloudEdges: LoreEdge[] = (edgesRes.data || []).map(e => ({
+      id: e.id,
+      ideaId: e.idea_id,
+      source: e.source,
+      target: e.target,
+      sourceHandle: e.source_handle || e.sourceHandle || null,
+      targetHandle: e.target_handle || e.targetHandle || null,
+      relationship: e.relationship,
+    }));
+    const mergedEdgesMap = new Map<string, LoreEdge>();
+    localEdges.forEach(e => mergedEdgesMap.set(e.id, e));
+    cloudEdges.forEach(e => mergedEdgesMap.set(e.id, e));
+    const finalEdges = Array.from(mergedEdgesMap.values());
+    safeSet(KEYS.EDGES, finalEdges);
+
+    const missingCloudEdges = localEdges.filter(le => !cloudEdges.some(ce => ce.id === le.id));
+    if (missingCloudEdges.length > 0) {
       supabase.from('edges').upsert(
-        localEdges.map(e => ({
+        missingCloudEdges.map(e => ({
           id: e.id,
           idea_id: e.ideaId,
           source: e.source,
@@ -214,18 +229,23 @@ export async function syncFromSupabase(): Promise<boolean> {
       ).then(() => {});
     }
 
-    // 4. Sync Inbox
-    if (inboxRes.data && inboxRes.data.length > 0) {
-      const cloudInbox: InboxItem[] = inboxRes.data.map(i => ({
-        id: i.id,
-        content: i.content,
-        status: i.status || 'pending',
-        createdAt: i.created_at,
-      }));
-      safeSet(KEYS.INBOX, cloudInbox);
-    } else if (localInbox.length > 0) {
+    // 4. Sync Inbox (Union Merge)
+    const cloudInbox: InboxItem[] = (inboxRes.data || []).map(i => ({
+      id: i.id,
+      content: i.content,
+      status: i.status || 'pending',
+      createdAt: i.created_at,
+    }));
+    const mergedInboxMap = new Map<string, InboxItem>();
+    localInbox.forEach(i => mergedInboxMap.set(i.id, i));
+    cloudInbox.forEach(i => mergedInboxMap.set(i.id, i));
+    const finalInbox = Array.from(mergedInboxMap.values());
+    safeSet(KEYS.INBOX, finalInbox);
+
+    const missingCloudInbox = localInbox.filter(li => !cloudInbox.some(ci => ci.id === li.id));
+    if (missingCloudInbox.length > 0) {
       supabase.from('inbox').upsert(
-        localInbox.map(i => ({
+        missingCloudInbox.map(i => ({
           id: i.id,
           content: i.content,
           status: i.status,
@@ -234,38 +254,44 @@ export async function syncFromSupabase(): Promise<boolean> {
       ).then(() => {});
     }
 
-    // 5. Sync Drawings
-    if (drawingsRes.data && drawingsRes.data.length > 0) {
-      const cloudDrawings: DrawingStroke[] = drawingsRes.data.map(d => ({
-        id: d.id,
-        ideaId: d.idea_id,
-        points: d.points || [],
-        color: d.color,
-        size: d.size,
-        tool: d.tool,
-        opacity: d.opacity,
-        createdAt: d.created_at,
-      }));
-      safeSet(KEYS.DRAWINGS, cloudDrawings);
-    }
+    // 5. Sync Drawings (Union Merge)
+    const cloudDrawings: DrawingStroke[] = (drawingsRes.data || []).map(d => ({
+      id: d.id,
+      ideaId: d.idea_id,
+      points: d.points || [],
+      color: d.color,
+      size: d.size,
+      tool: d.tool,
+      opacity: d.opacity,
+      createdAt: d.created_at,
+    }));
+    const mergedDrawingsMap = new Map<string, DrawingStroke>();
+    localDrawings.forEach(d => mergedDrawingsMap.set(d.id, d));
+    cloudDrawings.forEach(d => mergedDrawingsMap.set(d.id, d));
+    safeSet(KEYS.DRAWINGS, Array.from(mergedDrawingsMap.values()));
 
-    // 6. Sync Eras
-    if (erasRes.data && erasRes.data.length > 0) {
-      const cloudEras: Era[] = erasRes.data.map(e => ({
-        id: e.id,
-        ideaId: e.idea_id,
-        name: e.name,
-        startYear: e.start_year ?? e.startYear,
-        endYear: e.end_year ?? e.endYear,
-        color: e.color || '#8A4938',
-        description: e.description,
-        createdAt: e.created_at,
-        updatedAt: e.updated_at,
-      }));
-      safeSet(KEYS.ERAS, cloudEras);
-    } else if (localEras.length > 0) {
+    // 6. Sync Eras (Union Merge)
+    const cloudEras: Era[] = (erasRes.data || []).map(e => ({
+      id: e.id,
+      ideaId: e.idea_id,
+      name: e.name,
+      startYear: e.start_year ?? e.startYear,
+      endYear: e.end_year ?? e.endYear,
+      color: e.color || '#8A4938',
+      description: e.description,
+      createdAt: e.created_at,
+      updatedAt: e.updated_at,
+    }));
+    const mergedErasMap = new Map<string, Era>();
+    localEras.forEach(e => mergedErasMap.set(e.id, e));
+    cloudEras.forEach(e => mergedErasMap.set(e.id, e));
+    const finalEras = Array.from(mergedErasMap.values());
+    safeSet(KEYS.ERAS, finalEras);
+
+    const missingCloudEras = localEras.filter(le => !cloudEras.some(ce => ce.id === le.id));
+    if (missingCloudEras.length > 0) {
       supabase.from('eras').upsert(
-        localEras.map(e => ({
+        missingCloudEras.map(e => ({
           id: e.id,
           idea_id: e.ideaId,
           name: e.name,
