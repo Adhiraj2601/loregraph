@@ -23,6 +23,7 @@ import type { LoreEdge as LoreEdgeType } from '@/types/edge';
 import { LoreNodeData, nodeTypes } from '@/components/nodes/LoreGraphNode';
 import { nodeRepo, edgeRepo } from '@/lib/storage/repository';
 import { DrawingCanvas } from '@/components/graph/DrawingCanvas';
+import { MapBackdrop } from '@/components/graph/MapBackdrop';
 import { DrawingStroke, DrawingTool } from '@/types/drawing';
 
 // ─── Local debounce ──────────────────────────────────────────────────────────
@@ -192,6 +193,8 @@ interface GraphCanvasProps {
   strokes?: DrawingStroke[];
   onStrokesChange?: (strokes: DrawingStroke[]) => void;
   refreshKey?: number;
+  mapUrl?: string | null;
+  mapOpacity?: number;
 }
 
 export function GraphCanvas({
@@ -207,6 +210,8 @@ export function GraphCanvas({
   strokes = [],
   onStrokesChange,
   refreshKey,
+  mapUrl,
+  mapOpacity = 0.5,
 }: GraphCanvasProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -354,6 +359,11 @@ export function GraphCanvas({
         size={0.75}
         color="rgba(162, 158, 149, 0.45)"
       />
+
+      {/* World Map Backdrop Layer */}
+      {mapUrl && (
+        <MapBackdrop mapUrl={mapUrl} opacity={mapOpacity} />
+      )}
 
       {/* Freehand Vector Drawing Layer */}
       <DrawingCanvas

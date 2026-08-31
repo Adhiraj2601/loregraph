@@ -10,8 +10,10 @@ import { GraphToolbar } from '@/components/graph/GraphToolbar';
 import { DrawingToolbar } from '@/components/graph/DrawingToolbar';
 import { NodeDetailPanel } from '@/components/panels/NodeDetailPanel';
 import { CreateNodeModal } from '@/components/modals/CreateNodeModal';
+import { MapToolbar } from '@/components/graph/MapToolbar';
 import { Navigation } from '@/components/ui/Navigation';
 import { nodeRepo, edgeRepo, ideaRepo, drawingRepo } from '@/lib/storage/repository';
+import { loadWorldMap, uploadWorldMap, removeWorldMap } from '@/lib/mapStorage';
 import { LoreNode } from '@/types/node';
 import { LoreEdge } from '@/types/edge';
 import { Idea } from '@/types/idea';
@@ -40,6 +42,11 @@ function GraphPageContent() {
   const [isMobile, setIsMobile] = useState(false);
   const [mounted, setMounted] = useState(false);
 
+  // World Map Backdrop state
+  const [mapUrl, setMapUrl] = useState<string | null>(null);
+  const [mapOpacity, setMapOpacity] = useState<number>(0.5);
+  const [isMapUploading, setIsMapUploading] = useState<boolean>(false);
+
   // Check mobile
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -48,7 +55,7 @@ function GraphPageContent() {
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  // Load idea + nodes + edges + drawings
+  // Load idea + nodes + edges + drawings + map
   const loadData = useCallback(() => {
     const foundIdea = ideaRepo.getById(ideaId);
     if (!foundIdea) { router.push('/'); return; }
@@ -56,12 +63,30 @@ function GraphPageContent() {
     setNodes(nodeRepo.getAllByIdeaId(ideaId));
     setEdges(edgeRepo.getAllByIdeaId(ideaId));
     setStrokes(drawingRepo.getAllByIdeaId(ideaId));
+
+    loadWorldMap(ideaId).then(url => {
+      if (url) setMapUrl(url);
+    });
   }, [ideaId, router]);
 
   useEffect(() => {
     loadData();
     setMounted(true);
   }, [loadData]);
+
+  const handleMapUpload = useCallback(async (file: File) => {
+    setIsMapUploading(true);
+    const url = await uploadWorldMap(ideaId, file);
+    if (url) setMapUrl(url);
+    setIsMapUploading(false);
+  }, [ideaId]);
+
+  const handleMapRemove = useCallback(async () => {
+    if (window.confirm('Remove world map backdrop?')) {
+      await removeWorldMap(ideaId);
+      setMapUrl(null);
+    }
+  }, [ideaId]);
 
   // Open node from URL param if given
   useEffect(() => {
@@ -213,6 +238,8 @@ function GraphPageContent() {
                 strokes={strokes}
                 onStrokesChange={handleStrokesChange}
                 refreshKey={refreshKey}
+                mapUrl={mapUrl}
+                mapOpacity={mapOpacity}
               />
 
               <GraphToolbar
@@ -251,6 +278,18 @@ function GraphPageContent() {
                 onClear={handleClearDrawings}
                 canUndo={strokes.length > 0}
               />
+
+              {/* World Map Backdrop Toolbar */}
+              {!isDrawingMode && (
+                <MapToolbar
+                  mapUrl={mapUrl}
+                  opacity={mapOpacity}
+                  isUploading={isMapUploading}
+                  onUpload={handleMapUpload}
+                  onOpacityChange={setMapOpacity}
+                  onRemove={handleMapRemove}
+                />
+              )}
             </div>
           </ReactFlowProvider>
         </div>
