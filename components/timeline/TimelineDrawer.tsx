@@ -256,61 +256,99 @@ export function TimelineDrawer({
           style={{ background: 'var(--surface)' }}
         >
           <div className="relative h-full" style={{ width: `${trackWidth}px`, minWidth: '100%' }}>
-            {/* 1. ERA BANDS (Top Track) */}
-            <div className="h-8 relative mb-3">
-              {eras.length > 0 ? (
-                eras.map(era => {
-                  const leftPercent = Math.max(0, getXPercent(era.startYear));
-                  const rightPercent = Math.min(100, getXPercent(era.endYear));
-                  const widthPercent = Math.max(rightPercent - leftPercent, 2);
+            {/* 1. ERA BANDS (Top Track) — lane-packed to handle overlaps */}
+            {(() => {
+              const LANE_H = 28; // px per lane row
+              const LANE_GAP = 4; // px gap between lanes
 
-                  return (
-                    <div
-                      key={era.id}
-                      onClick={() => { setEditingEra(era); setShowCreateEra(true); }}
-                      className="absolute top-0 h-7 rounded px-2.5 flex items-center justify-between cursor-pointer border group transition-all hover:brightness-95 shadow-sm"
-                      style={{
-                        left: `${leftPercent}%`,
-                        width: `${widthPercent}%`,
-                        background: `${era.color}15`,
-                        borderColor: era.color,
-                      }}
-                      title={`${era.name} (${era.startYear} – ${era.endYear})\n${era.description || 'Click to edit epoch'}`}
-                    >
-                      <div className="flex items-center gap-1.5 min-w-0 pr-1">
-                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: era.color }} />
-                        <span className="font-serif text-xs font-medium truncate" style={{ color: era.color }}>
-                          {era.name}
-                        </span>
-                        <span className="text-[10px] font-mono opacity-60 hidden sm:inline" style={{ color: era.color }}>
-                          ({era.startYear}–{era.endYear})
-                        </span>
-                      </div>
+              // Greedy lane-packing: assign each era (sorted by start) to the
+              // first lane whose last era ends before this one begins.
+              const sorted = [...eras].sort((a, b) => a.startYear - b.startYear);
+              const laneEndYears: number[] = []; // tracks the endYear of the last era in each lane
+              const eraLane: Record<string, number> = {};
 
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={e => handleDeleteEra(era.id, e)}
-                          className="p-0.5 rounded hover:bg-red-100 text-red-600"
-                          title="Delete epoch"
+              sorted.forEach(era => {
+                let placed = false;
+                for (let lane = 0; lane < laneEndYears.length; lane++) {
+                  if (era.startYear >= laneEndYears[lane]) {
+                    eraLane[era.id] = lane;
+                    laneEndYears[lane] = era.endYear;
+                    placed = true;
+                    break;
+                  }
+                }
+                if (!placed) {
+                  eraLane[era.id] = laneEndYears.length;
+                  laneEndYears.push(era.endYear);
+                }
+              });
+
+              const numLanes = Math.max(laneEndYears.length, 1);
+              const trackH = numLanes * LANE_H + (numLanes - 1) * LANE_GAP;
+
+              return (
+                <div
+                  className="relative mb-3"
+                  style={{ height: eras.length > 0 ? `${trackH}px` : '28px' }}
+                >
+                  {eras.length > 0 ? (
+                    eras.map(era => {
+                      const leftPercent = Math.max(0, getXPercent(era.startYear));
+                      const rightPercent = Math.min(100, getXPercent(era.endYear));
+                      const widthPercent = Math.max(rightPercent - leftPercent, 1.5);
+                      const lane = eraLane[era.id] ?? 0;
+                      const topPx = lane * (LANE_H + LANE_GAP);
+
+                      return (
+                        <div
+                          key={era.id}
+                          onClick={() => { setEditingEra(era); setShowCreateEra(true); }}
+                          className="absolute rounded px-2.5 flex items-center justify-between cursor-pointer border group transition-all hover:brightness-95 shadow-sm"
+                          style={{
+                            left: `${leftPercent}%`,
+                            width: `${widthPercent}%`,
+                            top: `${topPx}px`,
+                            height: `${LANE_H}px`,
+                            background: `${era.color}15`,
+                            borderColor: era.color,
+                          }}
+                          title={`${era.name} (${era.startYear} – ${era.endYear})\n${era.description || 'Click to edit epoch'}`}
                         >
-                          <Trash2 size={10} />
-                        </button>
-                      </div>
+                          <div className="flex items-center gap-1.5 min-w-0 pr-1">
+                            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: era.color }} />
+                            <span className="font-serif text-xs font-medium truncate" style={{ color: era.color }}>
+                              {era.name}
+                            </span>
+                            <span className="text-[10px] font-mono opacity-60 hidden sm:inline" style={{ color: era.color }}>
+                              ({era.startYear}–{era.endYear})
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={e => handleDeleteEra(era.id, e)}
+                              className="p-0.5 rounded hover:bg-red-100 text-red-600"
+                              title="Delete epoch"
+                            >
+                              <Trash2 size={10} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="h-7 border border-dashed rounded flex items-center justify-center gap-2 text-xs font-serif italic text-[#73716B]">
+                      <span>No epochs defined yet.</span>
+                      <button
+                        onClick={() => { setEditingEra(undefined); setShowCreateEra(true); }}
+                        className="font-mono not-italic text-[11px] underline text-[#8A4938]"
+                      >
+                        + Define an Epoch
+                      </button>
                     </div>
-                  );
-                })
-              ) : (
-                <div className="h-7 border border-dashed rounded flex items-center justify-center gap-2 text-xs font-serif italic text-[#73716B]">
-                  <span>No epochs defined yet.</span>
-                  <button
-                    onClick={() => { setEditingEra(undefined); setShowCreateEra(true); }}
-                    className="font-mono not-italic text-[11px] underline text-[#8A4938]"
-                  >
-                    + Define an Epoch
-                  </button>
+                  )}
                 </div>
-              )}
-            </div>
+              );
+            })()}
 
             {/* 2. RULER AXIS & TICKS */}
             <div className="relative h-8 my-1">
