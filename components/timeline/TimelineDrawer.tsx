@@ -73,10 +73,14 @@ export function TimelineDrawer({
       return { minYear: 0, maxYear: 1000, yearSpan: 1000 };
     }
 
-    // Add 10% breathing room
-    const padding = Math.max(Math.round((max - min) * 0.08), 20);
-    const calculatedMin = min - padding;
-    const calculatedMax = max + padding;
+    // Add breathing room on both ends, but never go BELOW the true
+    // earliest data point on the left (avoids phantom negatives when
+    // epochs start at year 0 or any small positive number).
+    const span = max - min;
+    const rightPad = Math.max(Math.round(span * 0.08), 20);
+    const leftPad  = Math.min(Math.max(Math.round(span * 0.08), 20), Math.max(min, 0));
+    const calculatedMin = min - leftPad;
+    const calculatedMax = max + rightPad;
     return {
       minYear: calculatedMin,
       maxYear: calculatedMax,
