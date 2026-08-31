@@ -2,14 +2,15 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Edit3, Trash2, Focus, Plus, Check, PenTool, Highlighter, Eraser, RotateCcw } from 'lucide-react';
+import { X, Edit3, Trash2, Focus, Plus, Check, PenTool, Highlighter, Eraser, RotateCcw, Clock } from 'lucide-react';
 import { getStroke } from 'perfect-freehand';
 import { LoreNode } from '@/types/node';
 import { LoreEdge } from '@/types/edge';
 import { DrawingStroke, DrawingTool } from '@/types/drawing';
+import { Era } from '@/types/era';
 import { NODE_TYPE_CONFIG, NODE_TYPES_LIST } from '@/lib/nodeTypes';
 import { formatDate, formatRelativeTime, generateId } from '@/lib/utils';
-import { edgeRepo } from '@/lib/storage/repository';
+import { edgeRepo, eraRepo } from '@/lib/storage/repository';
 import { getSvgPathFromStroke } from '@/components/graph/DrawingCanvas';
 
 // ─── Embedded Node Sketchpad ──────────────────────────────────────────────────
@@ -258,6 +259,11 @@ export function NodeDetailPanel({
   const [editType, setEditType] = useState(node.type);
   const [editTagInput, setEditTagInput] = useState('');
   const [editTags, setEditTags] = useState<string[]>(node.tags ?? []);
+  const [editYear, setEditYear] = useState<string>(node.year !== undefined ? String(node.year) : '');
+  const [editEndYear, setEditEndYear] = useState<string>(node.endYear !== undefined ? String(node.endYear) : '');
+  const [editDateLabel, setEditDateLabel] = useState<string>(node.dateLabel || '');
+  const [editEraId, setEditEraId] = useState<string>(node.eraId || '');
+  const [worldEras, setWorldEras] = useState<Era[]>([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   // Connect Idea inline state
@@ -284,13 +290,18 @@ export function NodeDetailPanel({
     setEditDesc(node.description);
     setEditType(node.type);
     setEditTags(node.tags ?? []);
+    setEditYear(node.year !== undefined ? String(node.year) : '');
+    setEditEndYear(node.endYear !== undefined ? String(node.endYear) : '');
+    setEditDateLabel(node.dateLabel || '');
+    setEditEraId(node.eraId || '');
+    setWorldEras(eraRepo.getAllByIdeaId(node.ideaId));
     setIsEditing(false);
     setConfirmDelete(false);
     setIsConnecting(false);
     setTargetNodeId(availableCandidates[0]?.id || '');
     setRelationshipText('');
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [node.id, node.title, node.description, node.type, node.tags]);
+  }, [node.id, node.title, node.description, node.type, node.tags, node.year, node.endYear, node.dateLabel, node.eraId]);
 
   const handleSave = () => {
     onUpdate(node.id, {
@@ -298,6 +309,10 @@ export function NodeDetailPanel({
       description: editDesc.trim(),
       type: editType,
       tags: editTags,
+      year: editYear !== '' ? parseInt(editYear) : undefined,
+      endYear: editEndYear !== '' ? parseInt(editEndYear) : undefined,
+      dateLabel: editDateLabel.trim() || undefined,
+      eraId: editEraId || undefined,
     });
     setIsEditing(false);
   };
@@ -442,6 +457,129 @@ export function NodeDetailPanel({
             strokes={node.strokes || []}
             onChangeStrokes={handleStrokesUpdate}
           />
+        </div>
+
+        {/* Era & Chronology */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-mono uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--text-tertiary)' }}>
+              <Clock size={11} />
+              <span>Era & Chronology</span>
+            </span>
+          </div>
+
+          {isEditing ? (
+            <div className="p-3 rounded border space-y-3 bg-[var(--surface)]" style={{ borderColor: 'var(--border-light)' }}>
+              {/* Year inputs */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[9px] font-mono uppercase mb-1" style={{ color: 'var(--text-secondary)' }}>
+                    Year (Timeline Position)
+                  </label>
+                  <input
+                    type="number"
+                    value={editYear}
+                    onChange={e => setEditYear(e.target.value)}
+                    placeholder="e.g. 1450"
+                    className="w-full px-2.5 py-1.5 text-xs font-mono rounded border bg-transparent focus:outline-none focus:border-[#8A4938]"
+                    style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-mono uppercase mb-1" style={{ color: 'var(--text-secondary)' }}>
+                    End Year (Optional)
+                  </label>
+                  <input
+                    type="number"
+                    value={editEndYear}
+                    onChange={e => setEditEndYear(e.target.value)}
+                    placeholder="e.g. 1475"
+                    className="w-full px-2.5 py-1.5 text-xs font-mono rounded border bg-transparent focus:outline-none focus:border-[#8A4938]"
+                    style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                  />
+                </div>
+              </div>
+
+              {/* Date Label */}
+              <div>
+                <label className="block text-[9px] font-mono uppercase mb-1" style={{ color: 'var(--text-secondary)' }}>
+                  Custom Date Label (Display Text)
+                </label>
+                <input
+                  type="text"
+                  value={editDateLabel}
+                  onChange={e => setEditDateLabel(e.target.value)}
+                  placeholder="e.g. 1450 AC, Autumn Year 42"
+                  className="w-full px-2.5 py-1.5 text-xs font-serif rounded border bg-transparent focus:outline-none focus:border-[#8A4938]"
+                  style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                />
+              </div>
+
+              {/* Linked Epoch */}
+              {worldEras.length > 0 && (
+                <div>
+                  <label className="block text-[9px] font-mono uppercase mb-1" style={{ color: 'var(--text-secondary)' }}>
+                    Historical Epoch / Era
+                  </label>
+                  <select
+                    value={editEraId}
+                    onChange={e => setEditEraId(e.target.value)}
+                    className="w-full px-2 py-1.5 text-xs font-serif rounded border bg-[var(--surface)] focus:outline-none focus:border-[#8A4938]"
+                    style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                  >
+                    <option value="">(No specific epoch)</option>
+                    {worldEras.map(era => (
+                      <option key={era.id} value={era.id}>
+                        {era.name} ({era.startYear} – {era.endYear})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div>
+              {node.year !== undefined || node.dateLabel || node.eraId ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  {(node.dateLabel || node.year !== undefined) && (
+                    <span
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono border"
+                      style={{ borderColor: 'var(--accent-rust)', background: 'rgba(138, 73, 56, 0.08)', color: 'var(--accent-rust)' }}
+                    >
+                      <Clock size={12} />
+                      <span>{node.dateLabel || (node.endYear ? `${node.year} – ${node.endYear}` : `Year ${node.year}`)}</span>
+                    </span>
+                  )}
+
+                  {node.eraId && (() => {
+                    const matchedEra = worldEras.find(e => e.id === node.eraId);
+                    if (!matchedEra) return null;
+                    return (
+                      <span
+                        key={matchedEra.id}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-serif border"
+                        style={{
+                          borderColor: matchedEra.color,
+                          background: `${matchedEra.color}15`,
+                          color: matchedEra.color,
+                        }}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: matchedEra.color }} />
+                        <span>{matchedEra.name}</span>
+                      </span>
+                    );
+                  })()}
+                </div>
+              ) : (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="text-xs font-serif italic hover:underline flex items-center gap-1 text-[#73716B]"
+                >
+                  <span>+ Set timeline date & epoch</span>
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Description / Manuscript */}

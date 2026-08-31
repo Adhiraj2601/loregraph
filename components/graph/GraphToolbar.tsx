@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, MoreHorizontal, Plus, Eye, Edit3, Maximize2, RotateCcw } from 'lucide-react';
+import { ArrowLeft, MoreHorizontal, Plus, Eye, Edit3, Maximize2, RotateCcw, Clock } from 'lucide-react';
 import { useReactFlow } from '@xyflow/react';
 
 interface GraphToolbarProps {
@@ -12,7 +12,9 @@ interface GraphToolbarProps {
   nodeCount: number;
   edgeCount: number;
   isExploreMode: boolean;
+  isTimelineOpen?: boolean;
   onToggleExplore: () => void;
+  onToggleTimeline?: () => void;
   onCreateNode: () => void;
   onDeleteIdea?: () => void;
   updatedAt: string;
@@ -25,7 +27,9 @@ export function GraphToolbar({
   nodeCount,
   edgeCount,
   isExploreMode,
+  isTimelineOpen = false,
   onToggleExplore,
+  onToggleTimeline,
   onCreateNode,
   onDeleteIdea,
 }: GraphToolbarProps) {
@@ -117,6 +121,23 @@ export function GraphToolbar({
             {isExploreMode ? <Eye size={12} /> : <Edit3 size={12} />}
             <span className="hidden sm:inline">{isExploreMode ? 'Exploring' : 'Editing'}</span>
           </button>
+
+          {/* Timeline Drawer Toggle */}
+          {onToggleTimeline && (
+            <button
+              onClick={onToggleTimeline}
+              className="px-3 py-1.5 rounded text-xs font-medium transition-all hover:bg-[#ECE8DF] flex items-center gap-1.5"
+              style={{
+                background: isTimelineOpen ? 'rgba(138, 73, 56, 0.1)' : 'var(--surface)',
+                border: `1px solid ${isTimelineOpen ? 'var(--accent-rust)' : 'var(--border)'}`,
+                color: isTimelineOpen ? 'var(--accent-rust)' : 'var(--text-secondary)',
+              }}
+              title="Toggle Timeline & Epochs (T)"
+            >
+              <Clock size={12} />
+              <span className="hidden sm:inline">Timeline</span>
+            </button>
+          )}
 
           {/* Discreet Overflow Menu */}
           <div className="relative" ref={menuRef}>

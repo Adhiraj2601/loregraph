@@ -21,6 +21,7 @@ const shortcuts = [
     category: 'Map & Ideas',
     items: [
       { key: 'N', label: 'Add idea branch' },
+      { key: 'T', label: 'Toggle Timeline & Epochs' },
       { key: 'Space', label: 'Toggle Explore / Edit mode' },
       { key: 'F', label: 'Fit map to viewport' },
       { key: 'Delete', label: 'Delete selected idea' },

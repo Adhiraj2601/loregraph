@@ -11,12 +11,14 @@ import { DrawingToolbar } from '@/components/graph/DrawingToolbar';
 import { NodeDetailPanel } from '@/components/panels/NodeDetailPanel';
 import { CreateNodeModal } from '@/components/modals/CreateNodeModal';
 import { MapToolbar } from '@/components/graph/MapToolbar';
+import { TimelineDrawer } from '@/components/timeline/TimelineDrawer';
 import { Navigation } from '@/components/ui/Navigation';
-import { nodeRepo, edgeRepo, ideaRepo, drawingRepo } from '@/lib/storage/repository';
+import { nodeRepo, edgeRepo, ideaRepo, drawingRepo, eraRepo } from '@/lib/storage/repository';
 import { loadWorldMap, uploadWorldMap, removeWorldMap } from '@/lib/mapStorage';
 import { LoreNode } from '@/types/node';
 import { LoreEdge } from '@/types/edge';
 import { Idea } from '@/types/idea';
+import { Era } from '@/types/era';
 import { DrawingStroke, DrawingTool } from '@/types/drawing';
 
 function GraphPageContent() {
@@ -47,6 +49,10 @@ function GraphPageContent() {
   const [mapOpacity, setMapOpacity] = useState<number>(0.5);
   const [isMapUploading, setIsMapUploading] = useState<boolean>(false);
 
+  // Timeline / Epochs state
+  const [eras, setEras] = useState<Era[]>([]);
+  const [isTimelineOpen, setIsTimelineOpen] = useState<boolean>(false);
+
   // Check mobile
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -55,7 +61,7 @@ function GraphPageContent() {
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  // Load idea + nodes + edges + drawings + map
+  // Load idea + nodes + edges + drawings + map + eras
   const loadData = useCallback(() => {
     const foundIdea = ideaRepo.getById(ideaId);
     if (!foundIdea) { router.push('/'); return; }
@@ -63,6 +69,7 @@ function GraphPageContent() {
     setNodes(nodeRepo.getAllByIdeaId(ideaId));
     setEdges(edgeRepo.getAllByIdeaId(ideaId));
     setStrokes(drawingRepo.getAllByIdeaId(ideaId));
+    setEras(eraRepo.getAllByIdeaId(ideaId));
 
     loadWorldMap(ideaId).then(url => {
       if (url) setMapUrl(url);
@@ -145,6 +152,8 @@ function GraphPageContent() {
         setIsExploreMode(v => !v);
       } else if (e.key === 'n' || e.key === 'N') {
         if (!isExploreMode && !isDrawingMode) setShowCreateNode(true);
+      } else if (e.key === 't' || e.key === 'T') {
+        if (!isDrawingMode) setIsTimelineOpen(v => !v);
       } else if (e.key === 'f' || e.key === 'F') {
         setRefreshKey(k => k + 1);
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -249,9 +258,14 @@ function GraphPageContent() {
                 nodeCount={nodes.length}
                 edgeCount={edges.length}
                 isExploreMode={isExploreMode}
+                isTimelineOpen={isTimelineOpen}
                 onToggleExplore={() => {
                   setIsExploreMode(v => !v);
                   if (!isExploreMode) setIsDrawingMode(false);
+                }}
+                onToggleTimeline={() => {
+                  setIsTimelineOpen(v => !v);
+                  if (!isTimelineOpen) setIsDrawingMode(false);
                 }}
                 onCreateNode={() => setShowCreateNode(true)}
                 onDeleteIdea={() => {
@@ -353,6 +367,23 @@ function GraphPageContent() {
           </div>
         )}
       </div>
+
+      {/* Interactive Bottom Timeline & Epochs Drawer */}
+      <AnimatePresence>
+        {isTimelineOpen && (
+          <TimelineDrawer
+            ideaId={ideaId}
+            nodes={nodes}
+            eras={eras}
+            isOpen={isTimelineOpen}
+            onClose={() => setIsTimelineOpen(false)}
+            onSelectNode={handleNodeClick}
+            onFocusNode={handleFocusNode}
+            onErasChange={updatedEras => setEras(updatedEras)}
+            onNodeUpdated={handleUpdateNode}
+          />
+        )}
+      </AnimatePresence>
 
       {showCreateNode && (
         <CreateNodeModal

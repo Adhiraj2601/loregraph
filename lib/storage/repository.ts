@@ -3,6 +3,7 @@ import { LoreNode, CreateNodeInput } from '@/types/node';
 import { LoreEdge, CreateEdgeInput } from '@/types/edge';
 import { InboxItem, CreateInboxItemInput } from '@/types/inbox';
 import { DrawingStroke, CreateStrokeInput } from '@/types/drawing';
+import { Era, CreateEraInput } from '@/types/era';
 import { generateId } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 
@@ -54,6 +55,16 @@ export interface IDrawingRepository {
   deleteAllByIdeaId(ideaId: string): void;
 }
 
+export interface IEraRepository {
+  getAll(): Era[];
+  getAllByIdeaId(ideaId: string): Era[];
+  getById(id: string): Era | undefined;
+  create(input: CreateEraInput): Era;
+  update(id: string, updates: Partial<Era>): Era | undefined;
+  delete(id: string): void;
+  deleteByIdeaId(ideaId: string): void;
+}
+
 // ─── LocalStorage Keys ────────────────────────────────────────────────────────
 
 const KEYS = {
@@ -62,6 +73,7 @@ const KEYS = {
   EDGES: 'loregraph:edges',
   INBOX: 'loregraph:inbox',
   DRAWINGS: 'loregraph:drawings',
+  ERAS: 'loregraph:eras',
   SEEDED: 'loregraph:seeded',
 } as const;
 
@@ -92,12 +104,13 @@ function safeSet<T>(key: string, value: T): void {
 export async function syncFromSupabase(): Promise<boolean> {
   if (!supabase) return false;
   try {
-    const [ideasRes, nodesRes, edgesRes, inboxRes, drawingsRes] = await Promise.all([
+    const [ideasRes, nodesRes, edgesRes, inboxRes, drawingsRes, erasRes] = await Promise.all([
       supabase.from('ideas').select('*'),
       supabase.from('nodes').select('*'),
       supabase.from('edges').select('*'),
       supabase.from('inbox').select('*'),
       supabase.from('drawings').select('*'),
+      supabase.from('eras').select('*'),
     ]);
 
     const localIdeas = safeGet<Idea[]>(KEYS.IDEAS, []);
@@ -105,6 +118,7 @@ export async function syncFromSupabase(): Promise<boolean> {
     const localEdges = safeGet<LoreEdge[]>(KEYS.EDGES, []);
     const localInbox = safeGet<InboxItem[]>(KEYS.INBOX, []);
     const localDrawings = safeGet<DrawingStroke[]>(KEYS.DRAWINGS, []);
+    const localEras = safeGet<Era[]>(KEYS.ERAS, []);
 
     // 1. Sync Ideas
     if (ideasRes.data && ideasRes.data.length > 0) {
@@ -120,7 +134,6 @@ export async function syncFromSupabase(): Promise<boolean> {
       safeSet(KEYS.IDEAS, cloudIdeas);
       markSeeded();
     } else if (localIdeas.length > 0) {
-      // Push local ideas to cloud
       supabase.from('ideas').upsert(
         localIdeas.map(i => ({
           id: i.id,
@@ -145,13 +158,16 @@ export async function syncFromSupabase(): Promise<boolean> {
         tags: Array.isArray(n.tags) ? n.tags : [],
         position: n.position || { x: 300, y: 200 },
         strokes: Array.isArray(n.strokes) ? n.strokes : [],
+        year: n.year ?? undefined,
+        endYear: n.end_year ?? n.endYear ?? undefined,
+        dateLabel: n.date_label ?? n.dateLabel ?? undefined,
+        eraId: n.era_id ?? n.eraId ?? undefined,
         isRoot: n.is_root,
         createdAt: n.created_at,
         updatedAt: n.updated_at,
       }));
       safeSet(KEYS.NODES, cloudNodes);
     } else if (localNodes.length > 0) {
-      // Push local nodes to cloud
       supabase.from('nodes').upsert(
         localNodes.map(n => ({
           id: n.id,
@@ -161,6 +177,10 @@ export async function syncFromSupabase(): Promise<boolean> {
           type: n.type,
           tags: n.tags,
           position: n.position,
+          year: n.year,
+          end_year: n.endYear,
+          date_label: n.dateLabel,
+          era_id: n.eraId,
           is_root: n.isRoot || false,
           created_at: n.createdAt,
           updated_at: n.updatedAt,
@@ -181,13 +201,14 @@ export async function syncFromSupabase(): Promise<boolean> {
       }));
       safeSet(KEYS.EDGES, cloudEdges);
     } else if (localEdges.length > 0) {
-      // Push local edges to cloud
       supabase.from('edges').upsert(
         localEdges.map(e => ({
           id: e.id,
           idea_id: e.ideaId,
           source: e.source,
           target: e.target,
+          source_handle: e.sourceHandle,
+          target_handle: e.targetHandle,
           relationship: e.relationship || 'connected to',
         }))
       ).then(() => {});
@@ -226,6 +247,36 @@ export async function syncFromSupabase(): Promise<boolean> {
         createdAt: d.created_at,
       }));
       safeSet(KEYS.DRAWINGS, cloudDrawings);
+    }
+
+    // 6. Sync Eras
+    if (erasRes.data && erasRes.data.length > 0) {
+      const cloudEras: Era[] = erasRes.data.map(e => ({
+        id: e.id,
+        ideaId: e.idea_id,
+        name: e.name,
+        startYear: e.start_year ?? e.startYear,
+        endYear: e.end_year ?? e.endYear,
+        color: e.color || '#8A4938',
+        description: e.description,
+        createdAt: e.created_at,
+        updatedAt: e.updated_at,
+      }));
+      safeSet(KEYS.ERAS, cloudEras);
+    } else if (localEras.length > 0) {
+      supabase.from('eras').upsert(
+        localEras.map(e => ({
+          id: e.id,
+          idea_id: e.ideaId,
+          name: e.name,
+          start_year: e.startYear,
+          end_year: e.endYear,
+          color: e.color,
+          description: e.description,
+          created_at: e.createdAt,
+          updated_at: e.updatedAt,
+        }))
+      ).then(() => {});
     }
 
     return true;
@@ -332,6 +383,10 @@ export class LocalNodeRepository implements INodeRepository {
       ...input,
       position: input.position || { x: 300, y: 200 },
       strokes: input.strokes || [],
+      year: input.year,
+      endYear: input.endYear,
+      dateLabel: input.dateLabel,
+      eraId: input.eraId,
       createdAt: now,
       updatedAt: now,
     };
@@ -569,7 +624,6 @@ export class LocalDrawingRepository implements IDrawingRepository {
 
     const client = supabase;
     if (client) {
-      // Background upsert
       client.from('drawings').delete().eq('idea_id', ideaId).then(() => {
         if (strokes.length > 0) {
           client.from('drawings').insert(
@@ -636,6 +690,101 @@ export class LocalDrawingRepository implements IDrawingRepository {
   }
 }
 
+// ─── Era Repository ───────────────────────────────────────────────────────────
+
+export class LocalEraRepository implements IEraRepository {
+  getAll(): Era[] {
+    return safeGet<Era[]>(KEYS.ERAS, []);
+  }
+
+  getAllByIdeaId(ideaId: string): Era[] {
+    return this.getAll()
+      .filter((e) => e.ideaId === ideaId)
+      .sort((a, b) => a.startYear - b.startYear);
+  }
+
+  getById(id: string): Era | undefined {
+    return this.getAll().find((e) => e.id === id);
+  }
+
+  create(input: CreateEraInput): Era {
+    const now = new Date().toISOString();
+    const era: Era = {
+      id: generateId(),
+      ...input,
+      color: input.color || '#8A4938',
+      createdAt: now,
+      updatedAt: now,
+    };
+    const all = this.getAll();
+    safeSet(KEYS.ERAS, [...all, era]);
+
+    const client = supabase;
+    if (client) {
+      client.from('eras').insert({
+        id: era.id,
+        idea_id: era.ideaId,
+        name: era.name,
+        start_year: era.startYear,
+        end_year: era.endYear,
+        color: era.color,
+        description: era.description,
+        created_at: era.createdAt,
+        updated_at: era.updatedAt,
+      }).then(({ error }) => { if (error) console.error('Cloud era insert error:', error); });
+    }
+
+    return era;
+  }
+
+  update(id: string, updates: Partial<Era>): Era | undefined {
+    const all = this.getAll();
+    const idx = all.findIndex((e) => e.id === id);
+    if (idx === -1) return undefined;
+    const updated: Era = {
+      ...all[idx],
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+    all[idx] = updated;
+    safeSet(KEYS.ERAS, all);
+
+    const client = supabase;
+    if (client) {
+      client.from('eras').update({
+        name: updated.name,
+        start_year: updated.startYear,
+        end_year: updated.endYear,
+        color: updated.color,
+        description: updated.description,
+        updated_at: updated.updatedAt,
+      }).eq('id', id).then(({ error }) => { if (error) console.error('Cloud era update error:', error); });
+    }
+
+    return updated;
+  }
+
+  delete(id: string): void {
+    safeSet(KEYS.ERAS, this.getAll().filter((e) => e.id !== id));
+    const client = supabase;
+    if (client) {
+      client.from('eras').delete().eq('id', id).then(({ error }) => {
+        if (error) console.error('Cloud era delete error:', error);
+      });
+    }
+  }
+
+  deleteByIdeaId(ideaId: string): void {
+    safeSet(KEYS.ERAS, this.getAll().filter((e) => e.ideaId !== ideaId));
+    const client = supabase;
+    if (client) {
+      client.from('eras').delete().eq('idea_id', ideaId).then(({ error }) => {
+        if (error) console.error('Cloud era deleteByIdeaId error:', error);
+      });
+    }
+  }
+}
+
 // ─── Singleton instances ──────────────────────────────────────────────────────
 
 export const ideaRepo = new LocalIdeaRepository();
@@ -643,6 +792,7 @@ export const nodeRepo = new LocalNodeRepository();
 export const edgeRepo = new LocalEdgeRepository();
 export const inboxRepo = new LocalInboxRepository();
 export const drawingRepo = new LocalDrawingRepository();
+export const eraRepo = new LocalEraRepository();
 
 // ─── Seed check ───────────────────────────────────────────────────────────────
 

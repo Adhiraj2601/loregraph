@@ -24,6 +24,10 @@ export interface LoreNode {
   tags: string[];
   position: { x: number; y: number };
   strokes?: DrawingStroke[];
+  year?: number;
+  endYear?: number;
+  dateLabel?: string;
+  eraId?: string;
   createdAt: string;
   updatedAt: string;
   isRoot?: boolean;
@@ -37,5 +41,9 @@ export interface CreateNodeInput {
   tags: string[];
   position?: { x: number; y: number };
   strokes?: DrawingStroke[];
+  year?: number;
+  endYear?: number;
+  dateLabel?: string;
+  eraId?: string;
   isRoot?: boolean;
 }
