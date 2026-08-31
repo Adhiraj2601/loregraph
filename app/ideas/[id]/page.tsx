@@ -327,9 +327,5 @@ function GraphPageContent() {
 }
 
 export default function IdeaGraphPage() {
-  return (
-    <LoreGraphProvider>
-      <GraphPageContent />
-    </LoreGraphProvider>
-  );
+  return <GraphPageContent />;
 }

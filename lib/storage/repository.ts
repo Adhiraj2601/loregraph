@@ -17,6 +17,7 @@ export interface IIdeaRepository {
 }
 
 export interface INodeRepository {
+  getAll(): LoreNode[];
   getAllByIdeaId(ideaId: string): LoreNode[];
   getById(id: string): LoreNode | undefined;
   create(input: CreateNodeInput): LoreNode;
@@ -26,6 +27,7 @@ export interface INodeRepository {
 }
 
 export interface IEdgeRepository {
+  getAll(): LoreEdge[];
   getAllByIdeaId(ideaId: string): LoreEdge[];
   getById(id: string): LoreEdge | undefined;
   create(input: CreateEdgeInput): LoreEdge;
@@ -98,8 +100,15 @@ export async function syncFromSupabase(): Promise<boolean> {
       supabase.from('drawings').select('*'),
     ]);
 
+    const localIdeas = safeGet<Idea[]>(KEYS.IDEAS, []);
+    const localNodes = safeGet<LoreNode[]>(KEYS.NODES, []);
+    const localEdges = safeGet<LoreEdge[]>(KEYS.EDGES, []);
+    const localInbox = safeGet<InboxItem[]>(KEYS.INBOX, []);
+    const localDrawings = safeGet<DrawingStroke[]>(KEYS.DRAWINGS, []);
+
+    // 1. Sync Ideas
     if (ideasRes.data && ideasRes.data.length > 0) {
-      const mappedIdeas: Idea[] = ideasRes.data.map(i => ({
+      const cloudIdeas: Idea[] = ideasRes.data.map(i => ({
         id: i.id,
         title: i.title,
         description: i.description || '',
@@ -108,12 +117,26 @@ export async function syncFromSupabase(): Promise<boolean> {
         createdAt: i.created_at,
         updatedAt: i.updated_at,
       }));
-      safeSet(KEYS.IDEAS, mappedIdeas);
+      safeSet(KEYS.IDEAS, cloudIdeas);
       markSeeded();
+    } else if (localIdeas.length > 0) {
+      // Push local ideas to cloud
+      supabase.from('ideas').upsert(
+        localIdeas.map(i => ({
+          id: i.id,
+          title: i.title,
+          description: i.description,
+          tags: i.tags,
+          cover_color: i.coverColor,
+          created_at: i.createdAt,
+          updated_at: i.updatedAt,
+        }))
+      ).then(() => {});
     }
 
-    if (nodesRes.data) {
-      const mappedNodes: LoreNode[] = nodesRes.data.map(n => ({
+    // 2. Sync Nodes
+    if (nodesRes.data && nodesRes.data.length > 0) {
+      const cloudNodes: LoreNode[] = nodesRes.data.map(n => ({
         id: n.id,
         ideaId: n.idea_id,
         title: n.title,
@@ -121,37 +144,76 @@ export async function syncFromSupabase(): Promise<boolean> {
         type: n.type,
         tags: Array.isArray(n.tags) ? n.tags : [],
         position: n.position || { x: 300, y: 200 },
-        strokes: n.strokes || [],
+        strokes: Array.isArray(n.strokes) ? n.strokes : [],
         isRoot: n.is_root,
         createdAt: n.created_at,
         updatedAt: n.updated_at,
       }));
-      safeSet(KEYS.NODES, mappedNodes);
+      safeSet(KEYS.NODES, cloudNodes);
+    } else if (localNodes.length > 0) {
+      // Push local nodes to cloud
+      supabase.from('nodes').upsert(
+        localNodes.map(n => ({
+          id: n.id,
+          idea_id: n.ideaId,
+          title: n.title,
+          description: n.description,
+          type: n.type,
+          tags: n.tags,
+          position: n.position,
+          is_root: n.isRoot || false,
+          created_at: n.createdAt,
+          updated_at: n.updatedAt,
+        }))
+      ).then(() => {});
     }
 
-    if (edgesRes.data) {
-      const mappedEdges: LoreEdge[] = edgesRes.data.map(e => ({
+    // 3. Sync Edges
+    if (edgesRes.data && edgesRes.data.length > 0) {
+      const cloudEdges: LoreEdge[] = edgesRes.data.map(e => ({
         id: e.id,
         ideaId: e.idea_id,
         source: e.source,
         target: e.target,
         relationship: e.relationship,
       }));
-      safeSet(KEYS.EDGES, mappedEdges);
+      safeSet(KEYS.EDGES, cloudEdges);
+    } else if (localEdges.length > 0) {
+      // Push local edges to cloud
+      supabase.from('edges').upsert(
+        localEdges.map(e => ({
+          id: e.id,
+          idea_id: e.ideaId,
+          source: e.source,
+          target: e.target,
+          relationship: e.relationship || 'connected to',
+        }))
+      ).then(() => {});
     }
 
-    if (inboxRes.data) {
-      const mappedInbox: InboxItem[] = inboxRes.data.map(i => ({
+    // 4. Sync Inbox
+    if (inboxRes.data && inboxRes.data.length > 0) {
+      const cloudInbox: InboxItem[] = inboxRes.data.map(i => ({
         id: i.id,
         content: i.content,
         status: i.status || 'pending',
         createdAt: i.created_at,
       }));
-      safeSet(KEYS.INBOX, mappedInbox);
+      safeSet(KEYS.INBOX, cloudInbox);
+    } else if (localInbox.length > 0) {
+      supabase.from('inbox').upsert(
+        localInbox.map(i => ({
+          id: i.id,
+          content: i.content,
+          status: i.status,
+          created_at: i.createdAt,
+        }))
+      ).then(() => {});
     }
 
-    if (drawingsRes.data) {
-      const mappedDrawings: DrawingStroke[] = drawingsRes.data.map(d => ({
+    // 5. Sync Drawings
+    if (drawingsRes.data && drawingsRes.data.length > 0) {
+      const cloudDrawings: DrawingStroke[] = drawingsRes.data.map(d => ({
         id: d.id,
         ideaId: d.idea_id,
         points: d.points || [],
@@ -161,7 +223,7 @@ export async function syncFromSupabase(): Promise<boolean> {
         opacity: d.opacity,
         createdAt: d.created_at,
       }));
-      safeSet(KEYS.DRAWINGS, mappedDrawings);
+      safeSet(KEYS.DRAWINGS, cloudDrawings);
     }
 
     return true;
@@ -193,8 +255,9 @@ export class LocalIdeaRepository implements IIdeaRepository {
     const all = this.getAll();
     safeSet(KEYS.IDEAS, [...all, idea]);
 
-    if (supabase) {
-      supabase.from('ideas').insert({
+    const client = supabase;
+    if (client) {
+      client.from('ideas').insert({
         id: idea.id,
         title: idea.title,
         description: idea.description,
@@ -220,8 +283,9 @@ export class LocalIdeaRepository implements IIdeaRepository {
     all[idx] = updated;
     safeSet(KEYS.IDEAS, all);
 
-    if (supabase) {
-      supabase.from('ideas').update({
+    const client = supabase;
+    if (client) {
+      client.from('ideas').update({
         title: updated.title,
         description: updated.description,
         tags: updated.tags,
@@ -235,8 +299,9 @@ export class LocalIdeaRepository implements IIdeaRepository {
 
   delete(id: string): void {
     safeSet(KEYS.IDEAS, this.getAll().filter((i) => i.id !== id));
-    if (supabase) {
-      supabase.from('ideas').delete().eq('id', id).then(({ error }) => {
+    const client = supabase;
+    if (client) {
+      client.from('ideas').delete().eq('id', id).then(({ error }) => {
         if (error) console.error('Cloud delete error:', error);
       });
     }
@@ -264,14 +329,16 @@ export class LocalNodeRepository implements INodeRepository {
       id: generateId(),
       ...input,
       position: input.position || { x: 300, y: 200 },
+      strokes: input.strokes || [],
       createdAt: now,
       updatedAt: now,
     };
     const all = this.getAll();
     safeSet(KEYS.NODES, [...all, node]);
 
-    if (supabase) {
-      supabase.from('nodes').insert({
+    const client = supabase;
+    if (client) {
+      client.from('nodes').insert({
         id: node.id,
         idea_id: node.ideaId,
         title: node.title,
@@ -279,7 +346,6 @@ export class LocalNodeRepository implements INodeRepository {
         type: node.type,
         tags: node.tags,
         position: node.position,
-        strokes: node.strokes || [],
         is_root: node.isRoot || false,
         created_at: node.createdAt,
         updated_at: node.updatedAt,
@@ -301,14 +367,14 @@ export class LocalNodeRepository implements INodeRepository {
     all[idx] = updated;
     safeSet(KEYS.NODES, all);
 
-    if (supabase) {
-      supabase.from('nodes').update({
+    const client = supabase;
+    if (client) {
+      client.from('nodes').update({
         title: updated.title,
         description: updated.description,
         type: updated.type,
         tags: updated.tags,
         position: updated.position,
-        strokes: updated.strokes || [],
         updated_at: updated.updatedAt,
       }).eq('id', id).then(({ error }) => { if (error) console.error('Cloud node update error:', error); });
     }
@@ -318,8 +384,9 @@ export class LocalNodeRepository implements INodeRepository {
 
   delete(id: string): void {
     safeSet(KEYS.NODES, this.getAll().filter((n) => n.id !== id));
-    if (supabase) {
-      supabase.from('nodes').delete().eq('id', id).then(({ error }) => {
+    const client = supabase;
+    if (client) {
+      client.from('nodes').delete().eq('id', id).then(({ error }) => {
         if (error) console.error('Cloud node delete error:', error);
       });
     }
@@ -327,8 +394,9 @@ export class LocalNodeRepository implements INodeRepository {
 
   deleteByIdeaId(ideaId: string): void {
     safeSet(KEYS.NODES, this.getAll().filter((n) => n.ideaId !== ideaId));
-    if (supabase) {
-      supabase.from('nodes').delete().eq('idea_id', ideaId).then(({ error }) => {
+    const client = supabase;
+    if (client) {
+      client.from('nodes').delete().eq('idea_id', ideaId).then(({ error }) => {
         if (error) console.error('Cloud deleteByIdeaId error:', error);
       });
     }
@@ -358,8 +426,9 @@ export class LocalEdgeRepository implements IEdgeRepository {
     const all = this.getAll();
     safeSet(KEYS.EDGES, [...all, edge]);
 
-    if (supabase) {
-      supabase.from('edges').insert({
+    const client = supabase;
+    if (client) {
+      client.from('edges').insert({
         id: edge.id,
         idea_id: edge.ideaId,
         source: edge.source,
@@ -379,8 +448,9 @@ export class LocalEdgeRepository implements IEdgeRepository {
     all[idx] = updated;
     safeSet(KEYS.EDGES, all);
 
-    if (supabase) {
-      supabase.from('edges').update({
+    const client = supabase;
+    if (client) {
+      client.from('edges').update({
         relationship: updated.relationship,
       }).eq('id', id).then(({ error }) => { if (error) console.error('Cloud edge update error:', error); });
     }
@@ -390,8 +460,9 @@ export class LocalEdgeRepository implements IEdgeRepository {
 
   delete(id: string): void {
     safeSet(KEYS.EDGES, this.getAll().filter((e) => e.id !== id));
-    if (supabase) {
-      supabase.from('edges').delete().eq('id', id).then(({ error }) => {
+    const client = supabase;
+    if (client) {
+      client.from('edges').delete().eq('id', id).then(({ error }) => {
         if (error) console.error('Cloud edge delete error:', error);
       });
     }
@@ -399,8 +470,9 @@ export class LocalEdgeRepository implements IEdgeRepository {
 
   deleteByIdeaId(ideaId: string): void {
     safeSet(KEYS.EDGES, this.getAll().filter((e) => e.ideaId !== ideaId));
-    if (supabase) {
-      supabase.from('edges').delete().eq('idea_id', ideaId).then(({ error }) => {
+    const client = supabase;
+    if (client) {
+      client.from('edges').delete().eq('idea_id', ideaId).then(({ error }) => {
         if (error) console.error('Cloud edge delete error:', error);
       });
     }
@@ -433,8 +505,9 @@ export class LocalInboxRepository implements IInboxRepository {
     const all = this.getAll();
     safeSet(KEYS.INBOX, [...all, item]);
 
-    if (supabase) {
-      supabase.from('inbox').insert({
+    const client = supabase;
+    if (client) {
+      client.from('inbox').insert({
         id: item.id,
         content: item.content,
         status: item.status,
@@ -453,8 +526,9 @@ export class LocalInboxRepository implements IInboxRepository {
     all[idx] = updated;
     safeSet(KEYS.INBOX, all);
 
-    if (supabase) {
-      supabase.from('inbox').update({
+    const client = supabase;
+    if (client) {
+      client.from('inbox').update({
         content: updated.content,
         status: updated.status,
       }).eq('id', id).then(({ error }) => { if (error) console.error('Cloud inbox update error:', error); });
@@ -465,8 +539,9 @@ export class LocalInboxRepository implements IInboxRepository {
 
   delete(id: string): void {
     safeSet(KEYS.INBOX, this.getAll().filter((i) => i.id !== id));
-    if (supabase) {
-      supabase.from('inbox').delete().eq('id', id).then(({ error }) => {
+    const client = supabase;
+    if (client) {
+      client.from('inbox').delete().eq('id', id).then(({ error }) => {
         if (error) console.error('Cloud inbox delete error:', error);
       });
     }

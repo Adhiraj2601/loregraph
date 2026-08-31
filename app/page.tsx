@@ -345,9 +345,5 @@ function HomePageContent() {
 }
 
 export default function HomePage() {
-  return (
-    <LoreGraphProvider>
-      <HomePageContent />
-    </LoreGraphProvider>
-  );
+  return <HomePageContent />;
 }

@@ -261,10 +261,8 @@ function UniverseContent() {
 
 export default function UniversePage() {
   return (
-    <LoreGraphProvider>
-      <ReactFlowProvider>
-        <UniverseContent />
-      </ReactFlowProvider>
-    </LoreGraphProvider>
+    <ReactFlowProvider>
+      <UniverseContent />
+    </ReactFlowProvider>
   );
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { LoreGraphProvider } from '@/lib/context';
 
 export const metadata: Metadata = {
   title: 'LoreGraph — Interactive Worldbuilding',
@@ -13,8 +14,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-[#0B0D12] text-[#E8E6DF] min-h-screen">
-        {children}
+      <body className="min-h-screen" style={{ background: 'var(--bg)' }}>
+        <LoreGraphProvider>
+          {children}
+        </LoreGraphProvider>
       </body>
     </html>
   );
