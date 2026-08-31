@@ -175,6 +175,8 @@ export async function syncFromSupabase(): Promise<boolean> {
         ideaId: e.idea_id,
         source: e.source,
         target: e.target,
+        sourceHandle: e.source_handle || e.sourceHandle || null,
+        targetHandle: e.target_handle || e.targetHandle || null,
         relationship: e.relationship,
       }));
       safeSet(KEYS.EDGES, cloudEdges);
@@ -422,6 +424,8 @@ export class LocalEdgeRepository implements IEdgeRepository {
     const edge: LoreEdge = {
       id: generateId(),
       ...input,
+      sourceHandle: input.sourceHandle || null,
+      targetHandle: input.targetHandle || null,
     };
     const all = this.getAll();
     safeSet(KEYS.EDGES, [...all, edge]);

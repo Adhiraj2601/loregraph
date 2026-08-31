@@ -3,6 +3,8 @@ export interface LoreEdge {
   ideaId: string;
   source: string;
   target: string;
+  sourceHandle?: string | null;
+  targetHandle?: string | null;
   relationship?: string;
 }
 
@@ -10,5 +12,7 @@ export interface CreateEdgeInput {
   ideaId: string;
   source: string;
   target: string;
+  sourceHandle?: string | null;
+  targetHandle?: string | null;
   relationship?: string;
 }

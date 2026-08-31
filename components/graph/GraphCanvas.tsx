@@ -166,6 +166,8 @@ function toFlowEdges(
     id: e.id,
     source: e.source,
     target: e.target,
+    sourceHandle: e.sourceHandle || undefined,
+    targetHandle: e.targetHandle || undefined,
     type: 'loreEdge',
     data: {
       relationship: e.relationship || 'connected to',
@@ -290,6 +292,8 @@ export function GraphCanvas({
         ideaId,
         source: connection.source!,
         target: connection.target!,
+        sourceHandle: connection.sourceHandle || null,
+        targetHandle: connection.targetHandle || null,
         relationship,
       });
       const loreEdges = edgeRepo.getAllByIdeaId(ideaId);

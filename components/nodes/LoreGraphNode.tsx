@@ -54,34 +54,68 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
         opacity: isDimmed ? 0.25 : 1,
       }}
     >
-      {/* Visible Interactive Connection Handles */}
+      {/* Top Handles */}
       <Handle
         type="target"
         position={Position.Top}
-        id="target-top"
+        id="top"
         className="!w-2.5 !h-2.5 !bg-[#FCFAF7] !border-[1.5px] !border-[#8A4938] opacity-0 group-hover:opacity-100 transition-all hover:!scale-150"
         style={{ top: '-5px' }}
       />
       <Handle
+        type="source"
+        position={Position.Top}
+        id="top-source"
+        className="!w-2.5 !h-2.5 !bg-[#FCFAF7] !border-[1.5px] !border-[#8A4938] opacity-0 group-hover:opacity-100 transition-all hover:!scale-150"
+        style={{ top: '-5px' }}
+      />
+
+      {/* Bottom Handles */}
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="bottom"
+        className="!w-2.5 !h-2.5 !bg-[#FCFAF7] !border-[1.5px] !border-[#8A4938] opacity-0 group-hover:opacity-100 transition-all hover:!scale-150"
+        style={{ bottom: '-5px' }}
+      />
+      <Handle
+        type="target"
+        position={Position.Bottom}
+        id="bottom-target"
+        className="!w-2.5 !h-2.5 !bg-[#FCFAF7] !border-[1.5px] !border-[#8A4938] opacity-0 group-hover:opacity-100 transition-all hover:!scale-150"
+        style={{ bottom: '-5px' }}
+      />
+
+      {/* Left Handles */}
+      <Handle
         type="target"
         position={Position.Left}
-        id="target-left"
+        id="left"
         className="!w-2.5 !h-2.5 !bg-[#FCFAF7] !border-[1.5px] !border-[#8A4938] opacity-0 group-hover:opacity-100 transition-all hover:!scale-150"
         style={{ left: '-5px' }}
       />
       <Handle
         type="source"
+        position={Position.Left}
+        id="left-source"
+        className="!w-2.5 !h-2.5 !bg-[#FCFAF7] !border-[1.5px] !border-[#8A4938] opacity-0 group-hover:opacity-100 transition-all hover:!scale-150"
+        style={{ left: '-5px' }}
+      />
+
+      {/* Right Handles */}
+      <Handle
+        type="source"
         position={Position.Right}
-        id="source-right"
+        id="right"
         className="!w-2.5 !h-2.5 !bg-[#FCFAF7] !border-[1.5px] !border-[#8A4938] opacity-0 group-hover:opacity-100 transition-all hover:!scale-150"
         style={{ right: '-5px' }}
       />
       <Handle
-        type="source"
-        position={Position.Bottom}
-        id="source-bottom"
+        type="target"
+        position={Position.Right}
+        id="right-target"
         className="!w-2.5 !h-2.5 !bg-[#FCFAF7] !border-[1.5px] !border-[#8A4938] opacity-0 group-hover:opacity-100 transition-all hover:!scale-150"
-        style={{ bottom: '-5px' }}
+        style={{ right: '-5px' }}
       />
 
       {isRoot ? (
