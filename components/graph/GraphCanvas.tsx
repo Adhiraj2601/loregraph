@@ -197,6 +197,11 @@ interface GraphCanvasProps {
   refreshKey?: number;
   mapUrl?: string | null;
   mapOpacity?: number;
+  mapScale?: number;
+  mapPosition?: { x: number; y: number };
+  mapFixed?: boolean;
+  isMapAdjusting?: boolean;
+  onMapPositionChange?: (pos: { x: number; y: number }) => void;
 }
 
 export function GraphCanvas({
@@ -215,6 +220,11 @@ export function GraphCanvas({
   refreshKey,
   mapUrl,
   mapOpacity = 0.5,
+  mapScale = 1,
+  mapPosition = { x: 0, y: 0 },
+  mapFixed = true,
+  isMapAdjusting = false,
+  onMapPositionChange,
 }: GraphCanvasProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -383,7 +393,15 @@ export function GraphCanvas({
 
       {/* World Map Backdrop Layer */}
       {mapUrl && (
-        <MapBackdrop mapUrl={mapUrl} opacity={mapOpacity} />
+        <MapBackdrop
+          mapUrl={mapUrl}
+          opacity={mapOpacity}
+          scale={mapScale}
+          position={mapPosition}
+          isFixed={mapFixed}
+          isAdjusting={isMapAdjusting}
+          onPositionChange={onMapPositionChange}
+        />
       )}
 
       {/* Freehand Vector Drawing Layer */}

@@ -76,6 +76,7 @@ export async function loadWorldMap(ideaId: string): Promise<string | null> {
 
 export async function removeWorldMap(ideaId: string): Promise<void> {
   localStorage.removeItem(localKey(ideaId));
+  localStorage.removeItem(settingsKey(ideaId));
   sessionStorage.removeItem(localKey(ideaId));
 
   if (!supabase) return;
@@ -88,4 +89,38 @@ export async function removeWorldMap(ideaId: string): Promise<void> {
   } catch (err) {
     console.error('Map remove error:', err);
   }
+}
+
+// ─── Map Display Settings (Scale, Opacity, Position, Fixed Mode) ───────────────
+
+const settingsKey = (ideaId: string) => `loregraph:map_settings:${ideaId}`;
+
+export interface WorldMapSettings {
+  opacity: number;
+  scale: number;
+  position: { x: number; y: number };
+  isFixed: boolean;
+}
+
+export const DEFAULT_MAP_SETTINGS: WorldMapSettings = {
+  opacity: 0.5,
+  scale: 1,
+  position: { x: 0, y: 0 },
+  isFixed: true, // Default to true so nodes do NOT stick to the map
+};
+
+export function loadMapSettings(ideaId: string): WorldMapSettings {
+  try {
+    const raw = localStorage.getItem(settingsKey(ideaId));
+    if (raw) return { ...DEFAULT_MAP_SETTINGS, ...JSON.parse(raw) };
+  } catch {}
+  return DEFAULT_MAP_SETTINGS;
+}
+
+export function saveMapSettings(ideaId: string, settings: Partial<WorldMapSettings>): void {
+  try {
+    const current = loadMapSettings(ideaId);
+    const updated = { ...current, ...settings };
+    localStorage.setItem(settingsKey(ideaId), JSON.stringify(updated));
+  } catch {}
 }

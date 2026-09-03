@@ -14,7 +14,7 @@ import { MapToolbar } from '@/components/graph/MapToolbar';
 import { TimelineDrawer } from '@/components/timeline/TimelineDrawer';
 import { Navigation } from '@/components/ui/Navigation';
 import { nodeRepo, edgeRepo, ideaRepo, drawingRepo, eraRepo } from '@/lib/storage/repository';
-import { loadWorldMap, uploadWorldMap, removeWorldMap } from '@/lib/mapStorage';
+import { loadWorldMap, uploadWorldMap, removeWorldMap, loadMapSettings, saveMapSettings } from '@/lib/mapStorage';
 import { uploadEntityImage } from '@/lib/imageStorage';
 import { LoreNode } from '@/types/node';
 import { LoreEdge } from '@/types/edge';
@@ -48,6 +48,10 @@ function GraphPageContent() {
   // World Map Backdrop state
   const [mapUrl, setMapUrl] = useState<string | null>(null);
   const [mapOpacity, setMapOpacity] = useState<number>(0.5);
+  const [mapScale, setMapScale] = useState<number>(1);
+  const [mapPosition, setMapPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [mapFixed, setMapFixed] = useState<boolean>(true);
+  const [isMapAdjusting, setIsMapAdjusting] = useState<boolean>(false);
   const [isMapUploading, setIsMapUploading] = useState<boolean>(false);
 
   // Timeline / Epochs state
@@ -89,6 +93,12 @@ function GraphPageContent() {
     setStrokes(drawingRepo.getAllByIdeaId(ideaId));
     setEras(eraRepo.getAllByIdeaId(ideaId));
 
+    const mapSettings = loadMapSettings(ideaId);
+    setMapOpacity(mapSettings.opacity);
+    setMapScale(mapSettings.scale);
+    setMapPosition(mapSettings.position);
+    setMapFixed(mapSettings.isFixed);
+
     loadWorldMap(ideaId).then(url => {
       if (url) setMapUrl(url);
     });
@@ -111,6 +121,37 @@ function GraphPageContent() {
       await removeWorldMap(ideaId);
       setMapUrl(null);
     }
+  }, [ideaId]);
+
+  const handleMapOpacityChange = useCallback((opacity: number) => {
+    setMapOpacity(opacity);
+    saveMapSettings(ideaId, { opacity });
+  }, [ideaId]);
+
+  const handleMapScaleChange = useCallback((scale: number) => {
+    setMapScale(scale);
+    saveMapSettings(ideaId, { scale });
+  }, [ideaId]);
+
+  const handleMapPositionChange = useCallback((position: { x: number; y: number }) => {
+    setMapPosition(position);
+    saveMapSettings(ideaId, { position });
+  }, [ideaId]);
+
+  const handleToggleMapFixed = useCallback(() => {
+    setMapFixed(prev => {
+      const next = !prev;
+      saveMapSettings(ideaId, { isFixed: next });
+      return next;
+    });
+  }, [ideaId]);
+
+  const handleResetMap = useCallback(() => {
+    setMapScale(1);
+    setMapPosition({ x: 0, y: 0 });
+    setMapFixed(true);
+    setIsMapAdjusting(false);
+    saveMapSettings(ideaId, { scale: 1, position: { x: 0, y: 0 }, isFixed: true });
   }, [ideaId]);
 
   // Open node from URL param if given
@@ -312,6 +353,11 @@ function GraphPageContent() {
                 refreshKey={refreshKey}
                 mapUrl={mapUrl}
                 mapOpacity={mapOpacity}
+                mapScale={mapScale}
+                mapPosition={mapPosition}
+                mapFixed={mapFixed}
+                isMapAdjusting={isMapAdjusting}
+                onMapPositionChange={handleMapPositionChange}
               />
 
               <GraphToolbar
@@ -362,9 +408,16 @@ function GraphPageContent() {
                 <MapToolbar
                   mapUrl={mapUrl}
                   opacity={mapOpacity}
+                  scale={mapScale}
+                  isFixed={mapFixed}
+                  isAdjusting={isMapAdjusting}
                   isUploading={isMapUploading}
                   onUpload={handleMapUpload}
-                  onOpacityChange={setMapOpacity}
+                  onOpacityChange={handleMapOpacityChange}
+                  onScaleChange={handleMapScaleChange}
+                  onToggleFixed={handleToggleMapFixed}
+                  onToggleAdjusting={() => setIsMapAdjusting(v => !v)}
+                  onReset={handleResetMap}
                   onRemove={handleMapRemove}
                 />
               )}
