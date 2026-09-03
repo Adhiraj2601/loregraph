@@ -153,26 +153,39 @@ export async function syncFromSupabase(): Promise<boolean> {
     }
 
     // 2. Sync Nodes (Union Merge)
-    const cloudNodes: LoreNode[] = (nodesRes.data || []).map(n => ({
-      id: n.id,
-      ideaId: n.idea_id,
-      title: n.title,
-      description: n.description || '',
-      type: n.type,
-      tags: Array.isArray(n.tags) ? n.tags : [],
-      position: n.position || { x: 300, y: 200 },
-      strokes: Array.isArray(n.strokes) ? n.strokes : [],
-      year: n.year ?? undefined,
-      endYear: n.end_year ?? n.endYear ?? undefined,
-      dateLabel: n.date_label ?? n.dateLabel ?? undefined,
-      eraId: n.era_id ?? n.eraId ?? undefined,
-      isRoot: n.is_root,
-      createdAt: n.created_at,
-      updatedAt: n.updated_at,
-    }));
+    const cloudNodes: LoreNode[] = (nodesRes.data || []).map(n => {
+      const imageMatch = (n.description || '').match(/<!--image:(.*?)-->/);
+      const imageUrl = n.image_url ?? (imageMatch ? imageMatch[1] : undefined);
+      const cleanDescription = (n.description || '').replace(/<!--image:.*?-->/g, '').trim();
+
+      return {
+        id: n.id,
+        ideaId: n.idea_id,
+        title: n.title,
+        description: cleanDescription,
+        imageUrl,
+        type: n.type,
+        tags: Array.isArray(n.tags) ? n.tags : [],
+        position: n.position || { x: 300, y: 200 },
+        strokes: Array.isArray(n.strokes) ? n.strokes : [],
+        year: n.year ?? undefined,
+        endYear: n.end_year ?? n.endYear ?? undefined,
+        dateLabel: n.date_label ?? n.dateLabel ?? undefined,
+        eraId: n.era_id ?? n.eraId ?? undefined,
+        isRoot: n.is_root,
+        createdAt: n.created_at,
+        updatedAt: n.updated_at,
+      };
+    });
     const mergedNodesMap = new Map<string, LoreNode>();
     localNodes.forEach(n => mergedNodesMap.set(n.id, n));
-    cloudNodes.forEach(n => mergedNodesMap.set(n.id, n));
+    cloudNodes.forEach(n => {
+      const existing = mergedNodesMap.get(n.id);
+      mergedNodesMap.set(n.id, {
+        ...n,
+        imageUrl: existing?.imageUrl || n.imageUrl,
+      });
+    });
     const finalNodes = Array.from(mergedNodesMap.values());
     safeSet(KEYS.NODES, finalNodes);
 
@@ -183,7 +196,9 @@ export async function syncFromSupabase(): Promise<boolean> {
           id: n.id,
           idea_id: n.ideaId,
           title: n.title,
-          description: n.description,
+          description: n.imageUrl
+            ? `${n.description || ''}\n<!--image:${n.imageUrl}-->`.trim()
+            : n.description,
           type: n.type,
           tags: n.tags,
           position: n.position,
@@ -408,6 +423,7 @@ export class LocalNodeRepository implements INodeRepository {
       id: generateId(),
       ...input,
       position: input.position || { x: 300, y: 200 },
+      imageUrl: input.imageUrl,
       strokes: input.strokes || [],
       year: input.year,
       endYear: input.endYear,
@@ -425,7 +441,9 @@ export class LocalNodeRepository implements INodeRepository {
         id: node.id,
         idea_id: node.ideaId,
         title: node.title,
-        description: node.description,
+        description: node.imageUrl
+          ? `${node.description || ''}\n<!--image:${node.imageUrl}-->`.trim()
+          : node.description,
         type: node.type,
         tags: node.tags,
         position: node.position,
@@ -454,7 +472,9 @@ export class LocalNodeRepository implements INodeRepository {
     if (client) {
       client.from('nodes').update({
         title: updated.title,
-        description: updated.description,
+        description: updated.imageUrl
+          ? `${updated.description || ''}\n<!--image:${updated.imageUrl}-->`.trim()
+          : updated.description,
         type: updated.type,
         tags: updated.tags,
         position: updated.position,

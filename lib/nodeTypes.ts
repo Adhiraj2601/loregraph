@@ -1,6 +1,6 @@
 import { NodeType } from '@/types/node';
 import {
-  Sparkles, User, MapPin, Zap, Wand2, Calendar, Users, Box, ScrollText, Lightbulb, CircleHelp, Globe, PenTool,
+  Sparkles, User, MapPin, Zap, Wand2, Calendar, Users, Box, ScrollText, Lightbulb, CircleHelp, Globe, PenTool, Image as ImageIcon,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -118,9 +118,17 @@ export const NODE_TYPE_CONFIG: Record<NodeType, NodeTypeConfig> = {
     bg: 'rgba(158, 107, 71, 0.08)',
     border: 'rgba(158, 107, 71, 0.25)',
   },
+  IMAGE: {
+    label: 'Image',
+    icon: ImageIcon,
+    symbol: '▣',
+    color: '#4A6B82', // slate blue
+    bg: 'rgba(74, 107, 130, 0.08)',
+    border: 'rgba(74, 107, 130, 0.25)',
+  },
 };
 
 export const NODE_TYPES_LIST: NodeType[] = [
-  'SKETCH', 'CREATURE', 'CHARACTER', 'LOCATION', 'ABILITY', 'MAGIC',
+  'IMAGE', 'SKETCH', 'CREATURE', 'CHARACTER', 'LOCATION', 'ABILITY', 'MAGIC',
   'EVENT', 'FACTION', 'OBJECT', 'LORE', 'CONCEPT', 'QUESTION'
 ];

@@ -15,6 +15,7 @@ import { TimelineDrawer } from '@/components/timeline/TimelineDrawer';
 import { Navigation } from '@/components/ui/Navigation';
 import { nodeRepo, edgeRepo, ideaRepo, drawingRepo, eraRepo } from '@/lib/storage/repository';
 import { loadWorldMap, uploadWorldMap, removeWorldMap } from '@/lib/mapStorage';
+import { uploadEntityImage } from '@/lib/imageStorage';
 import { LoreNode } from '@/types/node';
 import { LoreEdge } from '@/types/edge';
 import { Idea } from '@/types/idea';
@@ -52,6 +53,7 @@ function GraphPageContent() {
   // Timeline / Epochs state
   const [eras, setEras] = useState<Era[]>([]);
   const [isTimelineOpen, setIsTimelineOpen] = useState<boolean>(false);
+  const imageFileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Check mobile
   useEffect(() => {
@@ -168,6 +170,8 @@ function GraphPageContent() {
         setIsExploreMode(v => !v);
       } else if (e.key === 'n' || e.key === 'N') {
         if (!isExploreMode && !isDrawingMode) setShowCreateNode(true);
+      } else if (e.key === 'i' || e.key === 'I') {
+        if (!isExploreMode && !isDrawingMode) imageFileInputRef.current?.click();
       } else if (e.key === 't' || e.key === 'T') {
         if (!isDrawingMode) setIsTimelineOpen(v => !v);
       } else if (e.key === 'f' || e.key === 'F') {
@@ -219,6 +223,34 @@ function GraphPageContent() {
     setSelectedNodeId(nodeId);
   }, [ideaId]);
 
+  const handleUploadImageNode = useCallback(async (file: File, position?: { x: number; y: number }) => {
+    if (!file.type.startsWith('image/')) return;
+    try {
+      const url = await uploadEntityImage(ideaId, file);
+      const baseName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+      const cleanTitle = baseName.charAt(0).toUpperCase() + baseName.slice(1);
+
+      const newNode = nodeRepo.create({
+        ideaId,
+        title: cleanTitle || 'Image Entity',
+        description: '',
+        type: 'IMAGE',
+        imageUrl: url,
+        tags: ['image'],
+        position: position ?? {
+          x: 350 + (Math.random() * 120 - 60),
+          y: 220 + (Math.random() * 120 - 60),
+        },
+      });
+
+      setNodes(nodeRepo.getAllByIdeaId(ideaId));
+      setRefreshKey(k => k + 1);
+      setSelectedNodeId(newNode.id);
+    } catch (err) {
+      console.error('Failed to upload entity image node:', err);
+    }
+  }, [ideaId]);
+
   const handleFocusNode = useCallback((nodeId: string) => {
     setSelectedNodeId(nodeId);
   }, []);
@@ -250,11 +282,26 @@ function GraphPageContent() {
         >
           <ReactFlowProvider>
             <div className="relative w-full h-full">
+              <input
+                ref={imageFileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    handleUploadImageNode(file);
+                    e.target.value = '';
+                  }
+                }}
+              />
+
               <GraphCanvas
                 ideaId={ideaId}
                 selectedNodeId={selectedNodeId}
                 onNodeClick={handleNodeClick}
                 onCanvasClick={handleCanvasClick}
+                onDropImage={handleUploadImageNode}
                 isExploreMode={isExploreMode}
                 isDrawingMode={isDrawingMode}
                 activeTool={activeTool}
@@ -284,6 +331,7 @@ function GraphPageContent() {
                   if (!isTimelineOpen) setIsDrawingMode(false);
                 }}
                 onCreateNode={() => setShowCreateNode(true)}
+                onUploadImage={handleUploadImageNode}
                 onDeleteIdea={() => {
                   deleteIdea(ideaId);
                   router.push('/');

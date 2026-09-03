@@ -1,32 +1,56 @@
-'use client';
-
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, Image as ImageIcon, Upload, Loader2 } from 'lucide-react';
 import { NodeType } from '@/types/node';
 import { NODE_TYPE_CONFIG, NODE_TYPES_LIST } from '@/lib/nodeTypes';
 import { useLoreGraph } from '@/lib/context';
+import { uploadEntityImage } from '@/lib/imageStorage';
 
 interface CreateNodeModalProps {
   ideaId: string;
   onClose: () => void;
   onCreated?: (nodeId: string) => void;
   defaultPosition?: { x: number; y: number };
+  initialType?: NodeType;
 }
 
-export function CreateNodeModal({ ideaId, onClose, onCreated, defaultPosition }: CreateNodeModalProps) {
+export function CreateNodeModal({ ideaId, onClose, onCreated, defaultPosition, initialType }: CreateNodeModalProps) {
   const { createNode } = useLoreGraph();
   const [title, setTitle] = useState('');
-  const [type, setType] = useState<NodeType>('CONCEPT');
+  const [type, setType] = useState<NodeType>(initialType ?? 'CONCEPT');
   const [description, setDescription] = useState('');
+  const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [error, setError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const addTag = () => {
     const t = tagInput.trim().toLowerCase();
     if (t && !tags.includes(t)) setTags([...tags, t]);
     setTagInput('');
+  };
+
+  const handleImageFile = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setError('Please upload a valid image file');
+      return;
+    }
+    setIsUploadingImage(true);
+    setError('');
+    try {
+      const url = await uploadEntityImage(ideaId, file);
+      setImageUrl(url);
+      if (!title.trim()) {
+        const baseName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+        setTitle(baseName.charAt(0).toUpperCase() + baseName.slice(1));
+      }
+    } catch {
+      setError('Failed to upload image');
+    } finally {
+      setIsUploadingImage(false);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -38,6 +62,7 @@ export function CreateNodeModal({ ideaId, onClose, onCreated, defaultPosition }:
       description,
       type,
       tags,
+      imageUrl,
       position: defaultPosition ?? {
         x: 350 + (Math.random() * 200 - 100),
         y: 220 + (Math.random() * 200 - 100),
@@ -119,6 +144,82 @@ export function CreateNodeModal({ ideaId, onClose, onCreated, defaultPosition }:
                   );
                 })}
               </div>
+            </div>
+
+            {/* Image Attachment (Prominent for IMAGE category, or optional for any) */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-[11px] font-mono uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+                  {type === 'IMAGE' ? 'Image File *' : 'Attached Image (Optional)'}
+                </label>
+                {imageUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setImageUrl(undefined)}
+                    className="text-[10px] font-mono text-red-600 hover:underline"
+                  >
+                    Remove Image
+                  </button>
+                )}
+              </div>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) handleImageFile(file);
+                }}
+              />
+
+              {imageUrl ? (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full h-32 rounded border overflow-hidden relative cursor-pointer group bg-[#FAF8F4] flex items-center justify-center"
+                  style={{ borderColor: 'var(--border)' }}
+                  title="Click to replace image"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={imageUrl} alt="Uploaded preview" className="w-full h-full object-cover group-hover:opacity-85 transition-opacity" />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 text-white text-xs font-mono">
+                    <Upload size={13} />
+                    <span>Change image</span>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
+                  onDrop={e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) handleImageFile(file);
+                  }}
+                  className={`w-full py-3.5 px-4 rounded border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-colors ${
+                    type === 'IMAGE' ? 'border-[#4A6B82]/50 bg-[#4A6B82]/5 hover:bg-[#4A6B82]/10' : 'border-[var(--border)] hover:bg-[#ECE8DF]'
+                  }`}
+                >
+                  {isUploadingImage ? (
+                    <div className="flex items-center gap-2 text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>
+                      <Loader2 size={15} className="animate-spin text-[#8A4938]" />
+                      <span>Uploading image...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <ImageIcon size={20} className="mb-1.5" style={{ color: type === 'IMAGE' ? '#4A6B82' : 'var(--text-tertiary)' }} />
+                      <p className="text-xs font-serif" style={{ color: 'var(--text-primary)' }}>
+                        Click to browse or drop image here
+                      </p>
+                      <p className="text-[10px] font-mono mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+                        PNG, JPG, WebP, SVG, GIF
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Description */}

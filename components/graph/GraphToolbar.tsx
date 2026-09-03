@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, MoreHorizontal, Plus, Eye, Edit3, Maximize2, RotateCcw, Clock } from 'lucide-react';
+import { ArrowLeft, MoreHorizontal, Plus, Eye, Edit3, Maximize2, RotateCcw, Clock, Image as ImageIcon } from 'lucide-react';
 import { useReactFlow } from '@xyflow/react';
 
 interface GraphToolbarProps {
@@ -16,6 +16,7 @@ interface GraphToolbarProps {
   onToggleExplore: () => void;
   onToggleTimeline?: () => void;
   onCreateNode: () => void;
+  onUploadImage?: (file: File) => void;
   onDeleteIdea?: () => void;
   updatedAt: string;
 }
@@ -31,12 +32,14 @@ export function GraphToolbar({
   onToggleExplore,
   onToggleTimeline,
   onCreateNode,
+  onUploadImage,
   onDeleteIdea,
 }: GraphToolbarProps) {
   const { fitView, setViewport } = useReactFlow();
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -92,19 +95,52 @@ export function GraphToolbar({
         <div className="pointer-events-auto flex items-center gap-3 pt-1">
           {/* Quick Add Node */}
           {!isExploreMode && (
-            <button
-              onClick={onCreateNode}
-              className="px-3 py-1.5 rounded text-xs font-medium transition-all hover:bg-[#ECE8DF] flex items-center gap-1.5"
-              style={{
-                background: 'var(--surface)',
-                border: '1px solid var(--border)',
-                color: 'var(--accent-rust)',
-              }}
-              title="Add idea branch (N)"
-            >
-              <Plus size={12} />
-              <span>Add Idea</span>
-            </button>
+            <>
+              <button
+                onClick={onCreateNode}
+                className="px-3 py-1.5 rounded text-xs font-medium transition-all hover:bg-[#ECE8DF] flex items-center gap-1.5"
+                style={{
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--accent-rust)',
+                }}
+                title="Add idea branch (N)"
+              >
+                <Plus size={12} />
+                <span>Add Idea</span>
+              </button>
+
+              {onUploadImage && (
+                <>
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        onUploadImage(file);
+                        e.target.value = '';
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={() => imageInputRef.current?.click()}
+                    className="px-3 py-1.5 rounded text-xs font-medium transition-all hover:bg-[#ECE8DF] flex items-center gap-1.5"
+                    style={{
+                      background: 'var(--surface)',
+                      border: '1px solid var(--border)',
+                      color: '#4A6B82',
+                    }}
+                    title="Upload image entity (I)"
+                  >
+                    <ImageIcon size={12} />
+                    <span className="hidden sm:inline">Add Image</span>
+                  </button>
+                </>
+              )}
+            </>
           )}
 
           {/* Explore Toggle */}

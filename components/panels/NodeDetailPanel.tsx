@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Edit3, Trash2, Focus, Plus, Check, PenTool, Highlighter, Eraser, RotateCcw, Clock } from 'lucide-react';
+import { X, Edit3, Trash2, Focus, Plus, Check, PenTool, Highlighter, Eraser, RotateCcw, Clock, Image as ImageIcon, Upload, Loader2, Maximize2 } from 'lucide-react';
 import { getStroke } from 'perfect-freehand';
 import { LoreNode } from '@/types/node';
 import { LoreEdge } from '@/types/edge';
@@ -12,6 +12,7 @@ import { NODE_TYPE_CONFIG, NODE_TYPES_LIST } from '@/lib/nodeTypes';
 import { formatDate, formatRelativeTime, generateId } from '@/lib/utils';
 import { edgeRepo, eraRepo } from '@/lib/storage/repository';
 import { getSvgPathFromStroke } from '@/components/graph/DrawingCanvas';
+import { uploadEntityImage } from '@/lib/imageStorage';
 
 // ─── Embedded Node Sketchpad ──────────────────────────────────────────────────
 
@@ -257,6 +258,10 @@ export function NodeDetailPanel({
   const [editTitle, setEditTitle] = useState(node.title);
   const [editDesc, setEditDesc] = useState(node.description);
   const [editType, setEditType] = useState(node.type);
+  const [editImageUrl, setEditImageUrl] = useState<string | undefined>(node.imageUrl);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const [editTagInput, setEditTagInput] = useState('');
   const [editTags, setEditTags] = useState<string[]>(node.tags ?? []);
   const [editYear, setEditYear] = useState<string>(node.year !== undefined ? String(node.year) : '');
@@ -289,6 +294,7 @@ export function NodeDetailPanel({
     setEditTitle(node.title);
     setEditDesc(node.description);
     setEditType(node.type);
+    setEditImageUrl(node.imageUrl);
     setEditTags(node.tags ?? []);
     setEditYear(node.year !== undefined ? String(node.year) : '');
     setEditEndYear(node.endYear !== undefined ? String(node.endYear) : '');
@@ -301,7 +307,23 @@ export function NodeDetailPanel({
     setTargetNodeId(availableCandidates[0]?.id || '');
     setRelationshipText('');
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [node.id, node.title, node.description, node.type, node.tags, node.year, node.endYear, node.dateLabel, node.eraId]);
+  }, [node.id, node.title, node.description, node.type, node.imageUrl, node.tags, node.year, node.endYear, node.dateLabel, node.eraId]);
+
+  const handleImageFile = async (file: File) => {
+    if (!file.type.startsWith('image/')) return;
+    setIsUploadingImage(true);
+    try {
+      const url = await uploadEntityImage(node.ideaId, file, node.id);
+      setEditImageUrl(url);
+      if (!isEditing) {
+        onUpdate(node.id, { imageUrl: url });
+      }
+    } catch (err) {
+      console.error('Failed to upload image:', err);
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
 
   const handleSave = () => {
     onUpdate(node.id, {
@@ -309,6 +331,7 @@ export function NodeDetailPanel({
       description: editDesc.trim(),
       type: editType,
       tags: editTags,
+      imageUrl: editImageUrl,
       year: editYear !== '' ? parseInt(editYear) : undefined,
       endYear: editEndYear !== '' ? parseInt(editEndYear) : undefined,
       dateLabel: editDateLabel.trim() || undefined,
@@ -438,6 +461,103 @@ export function NodeDetailPanel({
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* Attached / Entity Image Section */}
+        {(node.type === 'IMAGE' || editType === 'IMAGE' || editImageUrl || isEditing) && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-mono uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--text-tertiary)' }}>
+                <ImageIcon size={11} />
+                <span>{node.type === 'IMAGE' || editType === 'IMAGE' ? 'Image Artwork' : 'Attached Image'}</span>
+              </span>
+              {editImageUrl && (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsLightboxOpen(true)}
+                    className="text-[10px] font-mono text-[#4A6B82] hover:underline flex items-center gap-1"
+                  >
+                    <Maximize2 size={10} />
+                    <span>View full</span>
+                  </button>
+                  {isEditing && (
+                    <button
+                      type="button"
+                      onClick={() => setEditImageUrl(undefined)}
+                      className="text-[10px] font-mono text-red-600 hover:underline"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={e => {
+                const file = e.target.files?.[0];
+                if (file) handleImageFile(file);
+              }}
+            />
+
+            {editImageUrl ? (
+              <div
+                className="relative rounded-lg overflow-hidden border group bg-[#FAF8F4]"
+                style={{ borderColor: 'var(--border)' }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={editImageUrl}
+                  alt={node.title}
+                  className="w-full h-44 object-cover cursor-pointer group-hover:brightness-95 transition-all"
+                  onClick={() => setIsLightboxOpen(true)}
+                />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 pointer-events-none">
+                  <span className="text-white text-xs font-mono flex items-center gap-1 bg-black/60 px-2 py-1 rounded">
+                    <Maximize2 size={12} />
+                    Click to view full
+                  </span>
+                </div>
+                {isEditing && (
+                  <button
+                    type="button"
+                    onClick={() => imageInputRef.current?.click()}
+                    className="absolute bottom-2 right-2 px-2.5 py-1 rounded text-xs font-mono bg-black/75 hover:bg-black text-white flex items-center gap-1.5 backdrop-blur-sm transition-all shadow-md z-10"
+                  >
+                    <Upload size={11} />
+                    <span>Replace</span>
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div
+                onClick={() => imageInputRef.current?.click()}
+                className="w-full py-5 px-4 rounded-lg border-2 border-dashed border-[var(--border)] hover:border-[#4A6B82] flex flex-col items-center justify-center cursor-pointer transition-colors bg-[#FAF8F4]/50 hover:bg-[#ECE8DF]"
+              >
+                {isUploadingImage ? (
+                  <div className="flex items-center gap-2 text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>
+                    <Loader2 size={15} className="animate-spin text-[#8A4938]" />
+                    <span>Uploading image...</span>
+                  </div>
+                ) : (
+                  <>
+                    <ImageIcon size={22} className="mb-1.5 text-[#4A6B82]" />
+                    <p className="text-xs font-serif" style={{ color: 'var(--text-primary)' }}>
+                      Click to upload image for this entity
+                    </p>
+                    <p className="text-[10px] font-mono mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+                      PNG, JPG, WebP, SVG, GIF
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -859,6 +979,33 @@ export function NodeDetailPanel({
           </>
         )}
       </div>
+
+      {/* Lightbox Modal */}
+      {isLightboxOpen && editImageUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-editorial-fade"
+          onClick={() => setIsLightboxOpen(false)}
+        >
+          <div className="relative max-w-4xl max-h-[90vh] flex flex-col items-center" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={() => setIsLightboxOpen(false)}
+              className="absolute -top-10 right-0 p-1.5 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+              title="Close preview"
+            >
+              <X size={20} />
+            </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={editImageUrl}
+              alt={node.title}
+              className="max-w-full max-h-[82vh] object-contain rounded shadow-2xl border border-white/10"
+            />
+            <p className="mt-2 text-xs font-mono text-white/70">
+              {node.title}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

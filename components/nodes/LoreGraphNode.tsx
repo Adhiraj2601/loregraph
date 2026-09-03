@@ -16,6 +16,7 @@ export interface LoreNodeData {
   isExploreMode?: boolean;
   isDimmed?: boolean;
   tags?: string[];
+  imageUrl?: string;
   strokes?: DrawingStroke[];
   [key: string]: unknown;
 }
@@ -26,6 +27,7 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
   const isRoot = nodeData.isRoot;
   const isDimmed = nodeData.isDimmed;
   const isSketch = nodeData.type === 'SKETCH';
+  const isImage = nodeData.type === 'IMAGE' || Boolean(nodeData.imageUrl && nodeData.type !== 'ROOT');
   const strokes = nodeData.strokes ?? [];
 
   // Compute bounding box / viewBox for miniature SVG thumbnail
@@ -216,6 +218,55 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
                 <span className="text-base block mb-0.5" style={{ color: 'var(--text-tertiary)' }}>✎</span>
                 <span className="font-serif italic text-[10px] block" style={{ color: 'var(--text-tertiary)' }}>
                   Empty Sketch
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : isImage ? (
+        /* ─── VISUAL IMAGE ENTITY CARD ─── */
+        <div
+          className="relative p-2 rounded-md transition-all cursor-pointer select-none"
+          style={{
+            background: selected ? 'var(--surface)' : 'rgba(252, 250, 247, 0.98)',
+            border: `1.5px solid ${selected ? 'var(--accent-rust)' : 'var(--border)'}`,
+            boxShadow: selected
+              ? '0 0 0 2.5px rgba(138, 73, 56, 0.15), 0 3px 10px rgba(0,0,0,0.06)'
+              : '0 1px 4px rgba(0,0,0,0.04)',
+            width: '180px',
+          }}
+        >
+          {/* Card Header */}
+          <div className="flex items-center justify-between gap-1 mb-1.5 px-0.5">
+            <div className="flex items-center gap-1 min-w-0">
+              <span className="text-[11px]" style={{ color: config.color }}>▣</span>
+              <span className="font-serif text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                {nodeData.title}
+              </span>
+            </div>
+            <span className="font-mono text-[8px] uppercase tracking-wider px-1 py-0.2 rounded font-medium" style={{ color: config.color, background: config.bg }}>
+              IMAGE
+            </span>
+          </div>
+
+          {/* Image Frame */}
+          <div
+            className="w-full h-[105px] rounded overflow-hidden border flex items-center justify-center relative bg-[#FAF8F4] group-hover:brightness-95 transition-all"
+            style={{ borderColor: 'var(--border-light)' }}
+          >
+            {nodeData.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={nodeData.imageUrl}
+                alt={nodeData.title}
+                className="w-full h-full object-cover select-none pointer-events-none transition-transform duration-300 group-hover:scale-105"
+                loading="lazy"
+              />
+            ) : (
+              <div className="text-center p-2">
+                <span className="text-base block mb-0.5" style={{ color: 'var(--text-tertiary)' }}>▣</span>
+                <span className="font-serif italic text-[10px] block" style={{ color: 'var(--text-tertiary)' }}>
+                  No image attached
                 </span>
               </div>
             )}

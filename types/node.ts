@@ -13,6 +13,7 @@ export type NodeType =
   | 'CONCEPT'
   | 'QUESTION'
   | 'SKETCH'
+  | 'IMAGE'
   | 'ROOT';
 
 export interface LoreNode {
@@ -23,6 +24,7 @@ export interface LoreNode {
   type: NodeType;
   tags: string[];
   position: { x: number; y: number };
+  imageUrl?: string;
   strokes?: DrawingStroke[];
   year?: number;
   endYear?: number;
@@ -40,6 +42,7 @@ export interface CreateNodeInput {
   type: NodeType;
   tags: string[];
   position?: { x: number; y: number };
+  imageUrl?: string;
   strokes?: DrawingStroke[];
   year?: number;
   endYear?: number;

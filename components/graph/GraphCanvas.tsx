@@ -152,6 +152,7 @@ function toFlowNodes(loreNodes: LoreNode[], selectedId?: string, isExplore?: boo
       isRoot: n.isRoot,
       tags: n.tags,
       strokes: n.strokes,
+      imageUrl: n.imageUrl,
       isDimmed: false,
     } satisfies LoreNodeData,
     selected: n.id === selectedId,
@@ -185,6 +186,7 @@ interface GraphCanvasProps {
   selectedNodeId: string | null;
   onNodeClick: (nodeId: string) => void;
   onCanvasClick: () => void;
+  onDropImage?: (file: File, position: { x: number; y: number }) => void;
   isExploreMode: boolean;
   isDrawingMode?: boolean;
   activeTool?: DrawingTool;
@@ -202,6 +204,7 @@ export function GraphCanvas({
   selectedNodeId,
   onNodeClick,
   onCanvasClick,
+  onDropImage,
   isExploreMode,
   isDrawingMode = false,
   activeTool = 'pen',
@@ -215,7 +218,23 @@ export function GraphCanvas({
 }: GraphCanvasProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
-  const { fitView, setCenter } = useReactFlow();
+  const { fitView, setCenter, screenToFlowPosition } = useReactFlow();
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    if (!onDropImage) return;
+    const files = Array.from(e.dataTransfer.files);
+    const imageFile = files.find(f => f.type.startsWith('image/'));
+    if (!imageFile) return;
+
+    const flowPos = screenToFlowPosition({ x: e.clientX, y: e.clientY });
+    onDropImage(imageFile, flowPos);
+  }, [onDropImage, screenToFlowPosition]);
 
   // Debounced position save
   const savePositionsDebounced = useRef(
@@ -338,6 +357,8 @@ export function GraphCanvas({
       onPaneClick={() => {
         if (!isDrawingMode) onCanvasClick();
       }}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       nodesDraggable={!isExploreMode && !isDrawingMode}
