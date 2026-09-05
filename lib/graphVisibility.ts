@@ -1,18 +1,132 @@
 // ─── Graph Visibility Helpers ─────────────────────────────────────────────────
 // Pure functions for computing which nodes/edges are visible given a set of
-// collapsed node IDs. Designed for correctness on non-tree graphs (shared nodes).
+// collapsed node IDs.
 //
-// Convention: edges run source → target meaning "parent → child".
-// Collapsing a node hides all nodes reachable *only* through that collapsed node.
+// Handles arbitrary graph topologies and edge drawing directions (user may draw
+// handles parent→child or child→parent) by establishing a hierarchy rooted at
+// ROOT nodes (or primary in-degree/depth nodes).
 
 import type { LoreNode } from '@/types/node';
 import type { LoreEdge } from '@/types/edge';
 
-// ─── BFS: collect all descendants of a node ──────────────────────────────────
+// ─── Build directed parent → child adjacency based on graph depth ────────────
+
+export interface GraphHierarchy {
+  childrenMap: Map<string, Set<string>>; // parentId -> set of childIds
+  parentsMap: Map<string, Set<string>>;  // childId -> set of parentIds
+}
+
+export function buildGraphHierarchy(
+  allNodes: LoreNode[],
+  allEdges: LoreEdge[],
+): GraphHierarchy {
+  const childrenMap = new Map<string, Set<string>>();
+  const parentsMap = new Map<string, Set<string>>();
+
+  for (const node of allNodes) {
+    childrenMap.set(node.id, new Set<string>());
+    parentsMap.set(node.id, new Set<string>());
+  }
+
+  // 1. Find roots
+  const rootIds = allNodes.filter(n => n.isRoot).map(n => n.id);
+  const startRoots = rootIds.length > 0
+    ? rootIds
+    : (allNodes.length > 0 ? [allNodes[0].id] : []);
+
+  // 2. Compute depths from roots using undirected BFS
+  const nodeDepths = new Map<string, number>();
+  const visited = new Set<string>();
+  const queue: Array<{ id: string; depth: number }> = [];
+
+  for (const rId of startRoots) {
+    nodeDepths.set(rId, 0);
+    visited.add(rId);
+    queue.push({ id: rId, depth: 0 });
+  }
+
+  // Undirected adjacency
+  const undirectedAdj = new Map<string, Set<string>>();
+  for (const node of allNodes) {
+    undirectedAdj.set(node.id, new Set());
+  }
+  for (const edge of allEdges) {
+    if (undirectedAdj.has(edge.source) && undirectedAdj.has(edge.target)) {
+      undirectedAdj.get(edge.source)!.add(edge.target);
+      undirectedAdj.get(edge.target)!.add(edge.source);
+    }
+  }
+
+  while (queue.length > 0) {
+    const { id, depth } = queue.shift()!;
+    const neighbors = undirectedAdj.get(id);
+    if (!neighbors) continue;
+
+    for (const neighborId of neighbors) {
+      if (!visited.has(neighborId)) {
+        visited.add(neighborId);
+        nodeDepths.set(neighborId, depth + 1);
+        queue.push({ id: neighborId, depth: depth + 1 });
+      }
+    }
+  }
+
+  // Handle any disconnected components that weren't reached
+  for (const node of allNodes) {
+    if (!visited.has(node.id)) {
+      nodeDepths.set(node.id, 0);
+      visited.add(node.id);
+      queue.push({ id: node.id, depth: 0 });
+
+      while (queue.length > 0) {
+        const { id, depth } = queue.shift()!;
+        const neighbors = undirectedAdj.get(id);
+        if (!neighbors) continue;
+        for (const neighborId of neighbors) {
+          if (!visited.has(neighborId)) {
+            visited.add(neighborId);
+            nodeDepths.set(neighborId, depth + 1);
+            queue.push({ id: neighborId, depth: depth + 1 });
+          }
+        }
+      }
+    }
+  }
+
+  // 3. Assign parent -> child on each edge
+  for (const edge of allEdges) {
+    const depthSource = nodeDepths.get(edge.source) ?? 0;
+    const depthTarget = nodeDepths.get(edge.target) ?? 0;
+
+    let parent: string;
+    let child: string;
+
+    if (depthSource < depthTarget) {
+      parent = edge.source;
+      child = edge.target;
+    } else if (depthTarget < depthSource) {
+      parent = edge.target;
+      child = edge.source;
+    } else {
+      // Same depth: fallback to edge source -> target
+      parent = edge.source;
+      child = edge.target;
+    }
+
+    if (childrenMap.has(parent) && parentsMap.has(child) && parent !== child) {
+      childrenMap.get(parent)!.add(child);
+      parentsMap.get(child)!.add(parent);
+    }
+  }
+
+  return { childrenMap, parentsMap };
+}
+
+// ─── Get all descendants of a node ───────────────────────────────────────────
 
 export function getDescendants(
   nodeId: string,
-  allEdges: LoreEdge[],
+  childrenMap: Map<string, Set<string>>,
 ): Set<string> {
   const descendants = new Set<string>();
   const queue: string[] = [nodeId];
@@ -20,11 +134,14 @@ export function getDescendants(
 
   while (queue.length > 0) {
     const current = queue.shift()!;
-    for (const edge of allEdges) {
-      if (edge.source === current && !visited.has(edge.target)) {
-        visited.add(edge.target);
-        descendants.add(edge.target);
-        queue.push(edge.target);
+    const children = childrenMap.get(current);
+    if (!children) continue;
+
+    for (const childId of children) {
+      if (!visited.has(childId)) {
+        visited.add(childId);
+        descendants.add(childId);
+        queue.push(childId);
       }
     }
   }
@@ -32,25 +149,17 @@ export function getDescendants(
   return descendants;
 }
 
-// ─── Compute child count per node (for chevron visibility) ───────────────────
+// ─── Compute child counts ───────────────────────────────────────────────────
 
-export function getChildCounts(allEdges: LoreEdge[]): Map<string, number> {
+export function getChildCounts(childrenMap: Map<string, Set<string>>): Map<string, number> {
   const counts = new Map<string, number>();
-  for (const edge of allEdges) {
-    counts.set(edge.source, (counts.get(edge.source) ?? 0) + 1);
+  for (const [id, children] of childrenMap.entries()) {
+    counts.set(id, children.size);
   }
   return counts;
 }
 
 // ─── Compute hidden node IDs ─────────────────────────────────────────────────
-// A node is hidden if it is a descendant of at least one collapsed ancestor
-// AND it has no path from a visible (non-collapsed) ancestor.
-//
-// Algorithm:
-// 1. Collect all descendants of every collapsed node.
-// 2. Remove from that set any nodes that are also reachable from a visible root
-//    (i.e. a non-collapsed, non-hidden parent).
-// 3. The collapsed nodes themselves remain visible (they just show the count badge).
 
 export function computeHiddenNodeIds(
   collapsedIds: Set<string>,
@@ -59,52 +168,51 @@ export function computeHiddenNodeIds(
 ): Set<string> {
   if (collapsedIds.size === 0) return new Set();
 
+  const { childrenMap, parentsMap } = buildGraphHierarchy(allNodes, allEdges);
   const allNodeIds = new Set(allNodes.map(n => n.id));
 
-  // Step 1: collect candidates — all descendants of all collapsed nodes
+  // Step 1: collect all potential hidden candidates (descendants of collapsed nodes)
   const candidateHidden = new Set<string>();
   for (const collapsedId of collapsedIds) {
-    const descendants = getDescendants(collapsedId, allEdges);
+    const descendants = getDescendants(collapsedId, childrenMap);
     for (const d of descendants) {
       candidateHidden.add(d);
     }
   }
 
-  // Step 2: find nodes that are reachable from visible (non-hidden) ancestors
-  // We do a forward BFS/DFS starting from all nodes that are NOT in candidateHidden
-  // and NOT collapsed, following edges, stopping at collapsed nodes.
+  // Step 2: find all nodes reachable from visible roots without passing through collapsed nodes
   const visibleReachable = new Set<string>();
-
-  // Seed: all nodes not in candidates
   for (const nodeId of allNodeIds) {
     if (!candidateHidden.has(nodeId)) {
       visibleReachable.add(nodeId);
     }
   }
 
-  // Now propagate: from any visible node, follow edges — but STOP at collapsed nodes
-  // (collapsed nodes themselves are visible but their children are blocked)
   const propagateQueue = Array.from(visibleReachable);
   const propagateVisited = new Set<string>(visibleReachable);
 
   while (propagateQueue.length > 0) {
     const current = propagateQueue.shift()!;
-    // If this node is collapsed, its children are blocked — don't traverse through
+    // If this node is collapsed, stop propagation downstream
     if (collapsedIds.has(current)) continue;
-    for (const edge of allEdges) {
-      if (edge.source === current && !propagateVisited.has(edge.target)) {
-        propagateVisited.add(edge.target);
-        visibleReachable.add(edge.target);
-        propagateQueue.push(edge.target);
+
+    const children = childrenMap.get(current);
+    if (!children) continue;
+
+    for (const childId of children) {
+      if (!propagateVisited.has(childId)) {
+        propagateVisited.add(childId);
+        visibleReachable.add(childId);
+        propagateQueue.push(childId);
       }
     }
   }
 
-  // Step 3: final hidden set = candidates that are NOT in visibleReachable
+  // Step 3: hidden set = candidates not reachable from visible nodes
   const hidden = new Set<string>();
-  for (const nodeId of candidateHidden) {
-    if (!visibleReachable.has(nodeId)) {
-      hidden.add(nodeId);
+  for (const candidateId of candidateHidden) {
+    if (!visibleReachable.has(candidateId)) {
+      hidden.add(candidateId);
     }
   }
 
@@ -135,12 +243,12 @@ export function getVisibleEdges(
 
 export function getHiddenDescendantCounts(
   collapsedIds: Set<string>,
+  childrenMap: Map<string, Set<string>>,
   hiddenNodeIds: Set<string>,
-  allEdges: LoreEdge[],
 ): Map<string, number> {
   const counts = new Map<string, number>();
   for (const collapsedId of collapsedIds) {
-    const descendants = getDescendants(collapsedId, allEdges);
+    const descendants = getDescendants(collapsedId, childrenMap);
     let count = 0;
     for (const d of descendants) {
       if (hiddenNodeIds.has(d)) count++;

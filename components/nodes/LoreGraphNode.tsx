@@ -2,6 +2,7 @@
 
 import React, { memo, useMemo } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { getStroke } from 'perfect-freehand';
 import { NODE_TYPE_CONFIG } from '@/lib/nodeTypes';
 import { NodeType } from '@/types/node';
@@ -21,12 +22,12 @@ export interface LoreNodeData {
   // ── Collapse feature ──
   collapsed?: boolean;
   hiddenCount?: number;   // number of hidden descendants when collapsed
-  hasChildren?: boolean;  // whether this node has any outgoing edges
+  hasChildren?: boolean;  // whether this node has any descendant branches
   onToggleCollapse?: (e: React.MouseEvent) => void;
   [key: string]: unknown;
 }
 
-// ─── Collapse Chevron Button ──────────────────────────────────────────────────
+// ─── Collapse Chevron Button Component ───────────────────────────────────────
 
 function CollapseChevron({
   collapsed,
@@ -39,36 +40,28 @@ function CollapseChevron({
 }) {
   return (
     <button
+      type="button"
       onClick={onToggleCollapse}
-      onPointerDown={e => e.stopPropagation()} // prevent node drag start
-      className="flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-mono transition-all hover:bg-black/8 select-none flex-shrink-0 nodrag"
-      style={{
-        color: collapsed ? 'var(--accent-rust)' : 'var(--text-tertiary)',
-        cursor: 'pointer',
-      }}
-      title={collapsed ? 'Expand branch' : 'Collapse branch'}
+      onPointerDown={e => e.stopPropagation()} // prevent starting node drag
+      className={`nodrag nopan inline-flex items-center justify-center gap-1 transition-all select-none flex-shrink-0 rounded ${
+        collapsed
+          ? 'px-1.5 py-0.5 bg-[#8A4938]/15 text-[#8A4938] border border-[#8A4938]/40 font-mono font-semibold shadow-sm hover:bg-[#8A4938]/25'
+          : 'p-1 text-gray-500 hover:text-[#8A4938] hover:bg-black/5 rounded border border-transparent hover:border-black/10'
+      }`}
+      title={collapsed ? `Expand branch (${hiddenCount} hidden)` : 'Collapse branch'}
+      aria-label={collapsed ? 'Expand branch' : 'Collapse branch'}
     >
-      <span
-        style={{
-          display: 'inline-block',
-          transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
-          transition: 'transform 0.18s ease',
-          lineHeight: 1,
-          fontSize: '8px',
-        }}
-      >
-        ▾
-      </span>
-      {collapsed && hiddenCount > 0 && (
-        <span
-          className="ml-0.5 font-mono font-medium"
-          style={{
-            color: 'var(--accent-rust)',
-            fontSize: '9px',
-          }}
-        >
-          +{hiddenCount}
-        </span>
+      {collapsed ? (
+        <>
+          <ChevronRight size={12} className="text-[#8A4938] stroke-[2.5]" />
+          {hiddenCount > 0 && (
+            <span className="font-mono text-[10px] text-[#8A4938] leading-none">
+              +{hiddenCount}
+            </span>
+          )}
+        </>
+      ) : (
+        <ChevronDown size={13} className="text-gray-600 stroke-[2] transition-transform duration-200" />
       )}
     </button>
   );
@@ -190,8 +183,8 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
             boxShadow: selected
               ? '0 0 0 3px rgba(138, 73, 56, 0.12), 0 2px 8px rgba(0,0,0,0.04)'
               : '0 1px 4px rgba(0,0,0,0.03)',
-            minWidth: '140px',
-            maxWidth: '220px',
+            minWidth: '150px',
+            maxWidth: '240px',
           }}
         >
           <div className="flex items-center justify-center gap-1.5 mb-0.5">
@@ -209,7 +202,7 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
             </span>
           </div>
 
-          <div className="flex items-center justify-center gap-1">
+          <div className="flex items-center justify-center gap-2">
             <div
               className="font-serif text-base sm:text-lg font-medium leading-tight truncate px-1"
               style={{ color: 'var(--text-primary)' }}
@@ -235,7 +228,7 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
             boxShadow: selected
               ? '0 0 0 2.5px rgba(138, 73, 56, 0.15), 0 2px 8px rgba(0,0,0,0.05)'
               : '0 1px 4px rgba(0,0,0,0.03)',
-            width: '165px',
+            width: '175px',
           }}
         >
           {/* Card Header */}
@@ -246,7 +239,7 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
                 {nodeData.title}
               </span>
             </div>
-            <div className="flex items-center gap-0.5 flex-shrink-0">
+            <div className="flex items-center gap-1 flex-shrink-0">
               {showChevron && (
                 <CollapseChevron
                   collapsed={collapsed}
@@ -311,7 +304,7 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
             boxShadow: selected
               ? '0 0 0 2.5px rgba(138, 73, 56, 0.15), 0 3px 10px rgba(0,0,0,0.06)'
               : '0 1px 4px rgba(0,0,0,0.04)',
-            width: '180px',
+            width: '185px',
           }}
         >
           {/* Card Header */}
@@ -322,7 +315,7 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
                 {nodeData.title}
               </span>
             </div>
-            <div className="flex items-center gap-0.5 flex-shrink-0">
+            <div className="flex items-center gap-1 flex-shrink-0">
               {showChevron && (
                 <CollapseChevron
                   collapsed={collapsed}
@@ -362,32 +355,36 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
       ) : (
         /* ─── NOTEBOOK DIAGRAM CHILD NODE ─── */
         <div
-          className="relative px-3 py-2 rounded transition-all cursor-pointer select-none flex items-center gap-1.5"
+          className="relative px-3 py-2 rounded transition-all cursor-pointer select-none flex items-center justify-between gap-2"
           style={{
-            background: selected ? 'var(--surface)' : 'rgba(252, 250, 247, 0.9)',
-            border: `1px solid ${selected ? 'var(--accent-rust)' : collapsed ? 'rgba(138,73,56,0.35)' : 'var(--border)'}`,
+            background: selected ? 'var(--surface)' : 'rgba(252, 250, 247, 0.95)',
+            border: `1px solid ${selected ? 'var(--accent-rust)' : collapsed ? 'rgba(138,73,56,0.45)' : 'var(--border)'}`,
             boxShadow: selected ? '0 0 0 2px rgba(138, 73, 56, 0.15), 0 1px 4px rgba(0,0,0,0.03)' : '0 1px 3px rgba(0,0,0,0.02)',
-            maxWidth: '200px',
+            minWidth: '130px',
+            maxWidth: '220px',
           }}
         >
-          {/* Subtle category symbol / dot */}
-          <span
-            className="text-[11px] flex-shrink-0"
-            style={{ color: config.color }}
-          >
-            {config.symbol}
-          </span>
+          {/* Left section: Category icon + Node title */}
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            <span
+              className="text-[11px] flex-shrink-0"
+              style={{ color: config.color }}
+            >
+              {config.symbol}
+            </span>
 
-          <span
-            className="text-xs font-normal leading-snug group-hover:text-[#8A4938] transition-colors truncate flex-1"
-            style={{
-              color: selected ? 'var(--text-primary)' : '#2D2B29',
-              fontWeight: selected ? 500 : 400,
-            }}
-          >
-            {nodeData.title}
-          </span>
+            <span
+              className="text-xs font-normal leading-snug group-hover:text-[#8A4938] transition-colors truncate"
+              style={{
+                color: selected ? 'var(--text-primary)' : '#2D2B29',
+                fontWeight: selected ? 500 : 400,
+              }}
+            >
+              {nodeData.title}
+            </span>
+          </div>
 
+          {/* Right section: Collapse button (visible if node has children/descendants) */}
           {showChevron && (
             <CollapseChevron
               collapsed={collapsed}

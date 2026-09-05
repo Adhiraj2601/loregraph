@@ -31,6 +31,7 @@ import {
   getVisibleEdges,
   getHiddenDescendantCounts,
   getChildCounts,
+  buildGraphHierarchy,
 } from '@/lib/graphVisibility';
 
 // ─── Local debounce ──────────────────────────────────────────────────────────
@@ -319,10 +320,11 @@ export function GraphCanvas({
     const collapsed = collapsedNodeIds ?? new Set<string>();
     const toggleFn = onToggleCollapse ?? (() => {});
 
-    // Memoised visibility computations
+    // Hierarchy & Visibility computations
+    const { childrenMap } = buildGraphHierarchy(allNodes, allEdges);
     const hiddenNodeIds = computeHiddenNodeIds(collapsed, allNodes, allEdges);
-    const hiddenCounts = getHiddenDescendantCounts(collapsed, hiddenNodeIds, allEdges);
-    const childCounts = getChildCounts(allEdges);
+    const hiddenCounts = getHiddenDescendantCounts(collapsed, childrenMap, hiddenNodeIds);
+    const childCounts = getChildCounts(childrenMap);
 
     const flowNodes = toFlowNodes(
       allNodes,
