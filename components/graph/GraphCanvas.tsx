@@ -6,7 +6,6 @@ import {
   Background,
   useNodesState,
   useEdgesState,
-  addEdge,
   Connection,
   Edge,
   Node,
@@ -50,7 +49,9 @@ function LoreEdgeComponent({
   id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, selected, markerEnd,
 }: EdgeProps) {
   const [edgePath, labelX, labelY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
-  const label = (data as { relationship?: string })?.relationship || 'connected to';
+  const rawRelationship = (data as { relationship?: string })?.relationship;
+  // Blank by default — only show label if a custom relationship was actually set
+  const label = rawRelationship && rawRelationship !== 'connected to' ? rawRelationship : '';
   const onUpdateRelationship = (data as { onUpdateRelationship?: (id: string, rel: string) => void })?.onUpdateRelationship;
   const onDeleteEdge = (data as { onDeleteEdge?: (id: string) => void })?.onDeleteEdge;
 
@@ -64,10 +65,12 @@ function LoreEdgeComponent({
   const handleSave = () => {
     setIsEditing(false);
     const trimmed = editValue.trim();
-    if (trimmed && trimmed !== label && onUpdateRelationship) {
+    if (trimmed !== label && onUpdateRelationship) {
       onUpdateRelationship(id, trimmed);
     }
   };
+
+  const showBadge = Boolean(label || isEditing);
 
   return (
     <>
@@ -81,66 +84,68 @@ function LoreEdgeComponent({
         }}
         markerEnd={markerEnd}
       />
-      <EdgeLabelRenderer>
-        <div
-          style={{
-            position: 'absolute',
-            transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
-            pointerEvents: 'all',
-            fontSize: '10px',
-            fontFamily: 'JetBrains Mono, monospace',
-            background: 'rgba(252, 250, 247, 0.98)',
-            padding: '2px 7px',
-            borderRadius: '4px',
-            border: `1px solid ${selected || isEditing ? '#8A4938' : 'var(--border)'}`,
-            boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-            zIndex: 10,
-          }}
-          className="nodrag nopan group flex items-center gap-1.5 cursor-pointer transition-all hover:border-[#8A4938] hover:shadow-md"
-        >
-          {isEditing ? (
-            <input
-              type="text"
-              value={editValue}
-              onChange={e => setEditValue(e.target.value)}
-              onBlur={handleSave}
-              onKeyDown={e => {
-                if (e.key === 'Enter') handleSave();
-                if (e.key === 'Escape') { setEditValue(label); setIsEditing(false); }
-              }}
-              className="bg-transparent text-xs font-mono text-[#8A4938] focus:outline-none border-b border-[#8A4938] px-0.5 min-w-[90px]"
-              autoFocus
-              onClick={e => e.stopPropagation()}
-            />
-          ) : (
-            <>
-              <span
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsEditing(true);
+      {showBadge && (
+        <EdgeLabelRenderer>
+          <div
+            style={{
+              position: 'absolute',
+              transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+              pointerEvents: 'all',
+              fontSize: '10px',
+              fontFamily: 'JetBrains Mono, monospace',
+              background: 'rgba(252, 250, 247, 0.98)',
+              padding: '2px 7px',
+              borderRadius: '4px',
+              border: `1px solid ${selected || isEditing ? '#8A4938' : 'var(--border)'}`,
+              boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+              zIndex: 10,
+            }}
+            className="nodrag nopan group flex items-center gap-1.5 cursor-pointer transition-all hover:border-[#8A4938] hover:shadow-md"
+          >
+            {isEditing ? (
+              <input
+                type="text"
+                value={editValue}
+                onChange={e => setEditValue(e.target.value)}
+                onBlur={handleSave}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') handleSave();
+                  if (e.key === 'Escape') { setEditValue(label); setIsEditing(false); }
                 }}
-                className="hover:text-[#8A4938] transition-colors select-none"
-                style={{ color: selected ? '#8A4938' : '#73716B' }}
-                title="Click to rename relationship"
-              >
-                {label}
-              </span>
-              {onDeleteEdge && (
-                <button
+                className="bg-transparent text-xs font-mono text-[#8A4938] focus:outline-none border-b border-[#8A4938] px-0.5 min-w-[80px]"
+                autoFocus
+                onClick={e => e.stopPropagation()}
+              />
+            ) : (
+              <>
+                <span
                   onClick={(e) => {
                     e.stopPropagation();
-                    onDeleteEdge(id);
+                    setIsEditing(true);
                   }}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 text-[#9B3D3D] hover:bg-red-50 rounded text-[10px] leading-none"
-                  title="Delete relation"
+                  className="hover:text-[#8A4938] transition-colors select-none"
+                  style={{ color: selected ? '#8A4938' : '#73716B' }}
+                  title="Click to rename relationship"
                 >
-                  ✕
-                </button>
-              )}
-            </>
-          )}
-        </div>
-      </EdgeLabelRenderer>
+                  {label}
+                </span>
+                {onDeleteEdge && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteEdge(id);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 text-[#9B3D3D] hover:bg-red-50 rounded text-[10px] leading-none"
+                    title="Delete relation"
+                  >
+                    ✕
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </EdgeLabelRenderer>
+      )}
     </>
   );
 }
@@ -207,7 +212,7 @@ function toFlowEdges(
       targetHandle: e.targetHandle || undefined,
       type: 'loreEdge',
       data: {
-        relationship: e.relationship || 'connected to',
+        relationship: e.relationship && e.relationship !== 'connected to' ? e.relationship : '',
         onUpdateRelationship,
         onDeleteEdge,
       },
@@ -296,7 +301,7 @@ export function GraphCanvas({
       updatedNodes.forEach(n => {
         nodeRepo.update(n.id, { position: n.position as { x: number; y: number } });
       });
-    }, 500)
+    }, 300)
   ).current;
 
   const handleUpdateRelationship = useCallback((id: string, relationship: string) => {
@@ -395,19 +400,46 @@ export function GraphCanvas({
   const handleNodesChange = useCallback(
     (changes: Parameters<typeof onNodesChange>[0]) => {
       onNodesChange(changes);
+
+      // Synchronously update node positions in allLoreNodesRef so rebuildGraph never reverts to old coords
+      changes.forEach(c => {
+        if (c.type === 'position' && c.position) {
+          const target = allLoreNodesRef.current.find(n => n.id === c.id);
+          if (target) {
+            target.position = { ...c.position };
+          }
+        }
+      });
+
       const hasDragEnd = changes.some(c => c.type === 'position' && !('dragging' in c && c.dragging));
       if (hasDragEnd) {
-        setNodes(ns => { savePositionsDebounced(ns); return ns; });
+        setNodes(ns => {
+          ns.forEach(n => {
+            const target = allLoreNodesRef.current.find(ln => ln.id === n.id);
+            if (target) target.position = { ...n.position };
+            nodeRepo.update(n.id, { position: n.position as { x: number; y: number } });
+          });
+          return ns;
+        });
       }
     },
-    [onNodesChange, setNodes, savePositionsDebounced]
+    [onNodesChange, setNodes]
   );
 
   const onConnect = useCallback(
     (connection: Connection) => {
-      const relInput = window.prompt('Name this relationship (e.g. "wields", "allied with", "created by"):', 'connected to');
+      // Prompt for relationship name (optional — leave blank for a clean straight line)
+      const relInput = window.prompt('Name this relationship (leave blank for a plain line):', '');
       if (relInput === null) return; // User cancelled
-      const relationship = relInput.trim() || 'connected to';
+      const relationship = relInput.trim();
+
+      // Ensure any current node positions are immediately flushed into storage and ref
+      nodes.forEach(n => {
+        const target = allLoreNodesRef.current.find(ln => ln.id === n.id);
+        if (target) target.position = { ...n.position };
+        nodeRepo.update(n.id, { position: n.position as { x: number; y: number } });
+      });
+
       edgeRepo.create({
         ideaId,
         source: connection.source!,
@@ -416,10 +448,12 @@ export function GraphCanvas({
         targetHandle: connection.targetHandle || null,
         relationship,
       });
+
+      allLoreNodesRef.current = nodeRepo.getAllByIdeaId(ideaId);
       allLoreEdgesRef.current = edgeRepo.getAllByIdeaId(ideaId);
       rebuildGraph();
     },
-    [ideaId, rebuildGraph]
+    [ideaId, nodes, rebuildGraph]
   );
 
   const handleNodeClick = useCallback(

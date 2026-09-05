@@ -1,57 +1,68 @@
 'use client';
 
 import { supabase } from '@/lib/supabase';
+import { readFileAsDataUrl } from '@/lib/imageStorage';
 
 const BUCKET = 'world-maps';
 const localKey = (ideaId: string) => `loregraph:map:${ideaId}`;
 
-// ─── Upload map image to Supabase Storage ─────────────────────────────────────
+// ─── Upload map image with guaranteed persistent fallback ─────────────────────
 
 export async function uploadWorldMap(ideaId: string, file: File): Promise<string | null> {
-  const ext = file.name.split('.').pop() ?? 'png';
-  const path = `${ideaId}/map.${ext}`;
+  // 1. Convert to base64 Data URL so it permanently survives reloads & offline
+  let dataUrl: string | null = null;
+  try {
+    dataUrl = await readFileAsDataUrl(file);
+    localStorage.setItem(localKey(ideaId), dataUrl);
+  } catch (e) {
+    console.warn('Failed to encode map as data URL:', e);
+  }
 
   if (!supabase) {
-    const localUrl = URL.createObjectURL(file);
-    sessionStorage.setItem(localKey(ideaId), localUrl);
-    return localUrl;
+    return dataUrl;
   }
 
   try {
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
+    const path = `${ideaId}/map.${ext}`;
+
     const { error } = await supabase.storage
       .from(BUCKET)
       .upload(path, file, { upsert: true, cacheControl: '3600' });
 
     if (error) {
-      console.error('Map upload error:', error.message);
-      const localUrl = URL.createObjectURL(file);
-      sessionStorage.setItem(localKey(ideaId), localUrl);
-      return localUrl;
+      console.warn('Map upload error (using local persistent Data URL):', error.message);
+      return dataUrl;
     }
 
     const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
     const publicUrl = data.publicUrl;
 
-    localStorage.setItem(localKey(ideaId), publicUrl);
-    return publicUrl;
+    if (publicUrl) {
+      localStorage.setItem(localKey(ideaId), publicUrl);
+      return publicUrl;
+    }
+
+    return dataUrl;
   } catch (err) {
-    console.error('Map upload exception:', err);
-    return null;
+    console.error('Map upload exception (using local Data URL):', err);
+    return dataUrl;
   }
 }
 
-// ─── Load map URL (local cache first, then Supabase Storage list) ──────────────
+// ─── Load map URL (localStorage persistent cache + Supabase SDK) ──────────────
 
 export async function loadWorldMap(ideaId: string): Promise<string | null> {
-  // 1. Try localStorage cache first (instant)
+  // 1. Check localStorage cache
   const cached = localStorage.getItem(localKey(ideaId));
-  if (cached) return cached;
+  if (cached) {
+    // If it's a dead session blob URL, ignore it; otherwise data URL or public URL is valid
+    if (!cached.startsWith('blob:')) {
+      return cached;
+    }
+  }
 
-  // 2. Try sessionStorage (fallback for non-supabase runs)
-  const session = sessionStorage.getItem(localKey(ideaId));
-  if (session) return session;
-
-  // 3. Query Supabase Storage via official SDK listing (avoids browser CORS issues)
+  // 2. Query Supabase Storage directly
   if (!supabase) return null;
   try {
     const { data: files, error } = await supabase.storage.from(BUCKET).list(ideaId);
