@@ -18,7 +18,60 @@ export interface LoreNodeData {
   tags?: string[];
   imageUrl?: string;
   strokes?: DrawingStroke[];
+  // ── Collapse feature ──
+  collapsed?: boolean;
+  hiddenCount?: number;   // number of hidden descendants when collapsed
+  hasChildren?: boolean;  // whether this node has any outgoing edges
+  onToggleCollapse?: (e: React.MouseEvent) => void;
   [key: string]: unknown;
+}
+
+// ─── Collapse Chevron Button ──────────────────────────────────────────────────
+
+function CollapseChevron({
+  collapsed,
+  hiddenCount,
+  onToggleCollapse,
+}: {
+  collapsed: boolean;
+  hiddenCount: number;
+  onToggleCollapse: (e: React.MouseEvent) => void;
+}) {
+  return (
+    <button
+      onClick={onToggleCollapse}
+      onPointerDown={e => e.stopPropagation()} // prevent node drag start
+      className="flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-mono transition-all hover:bg-black/8 select-none flex-shrink-0 nodrag"
+      style={{
+        color: collapsed ? 'var(--accent-rust)' : 'var(--text-tertiary)',
+        cursor: 'pointer',
+      }}
+      title={collapsed ? 'Expand branch' : 'Collapse branch'}
+    >
+      <span
+        style={{
+          display: 'inline-block',
+          transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+          transition: 'transform 0.18s ease',
+          lineHeight: 1,
+          fontSize: '8px',
+        }}
+      >
+        ▾
+      </span>
+      {collapsed && hiddenCount > 0 && (
+        <span
+          className="ml-0.5 font-mono font-medium"
+          style={{
+            color: 'var(--accent-rust)',
+            fontSize: '9px',
+          }}
+        >
+          +{hiddenCount}
+        </span>
+      )}
+    </button>
+  );
 }
 
 const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps) {
@@ -29,6 +82,13 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
   const isSketch = nodeData.type === 'SKETCH';
   const isImage = nodeData.type === 'IMAGE' || Boolean(nodeData.imageUrl && nodeData.type !== 'ROOT');
   const strokes = nodeData.strokes ?? [];
+
+  const collapsed = nodeData.collapsed ?? false;
+  const hiddenCount = nodeData.hiddenCount ?? 0;
+  const hasChildren = nodeData.hasChildren ?? false;
+  const onToggleCollapse = nodeData.onToggleCollapse as ((e: React.MouseEvent) => void) | undefined;
+
+  const showChevron = hasChildren && onToggleCollapse != null;
 
   // Compute bounding box / viewBox for miniature SVG thumbnail
   const svgViewBox = useMemo(() => {
@@ -149,11 +209,20 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
             </span>
           </div>
 
-          <div
-            className="font-serif text-base sm:text-lg font-medium leading-tight truncate px-1"
-            style={{ color: 'var(--text-primary)' }}
-          >
-            {nodeData.title}
+          <div className="flex items-center justify-center gap-1">
+            <div
+              className="font-serif text-base sm:text-lg font-medium leading-tight truncate px-1"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              {nodeData.title}
+            </div>
+            {showChevron && (
+              <CollapseChevron
+                collapsed={collapsed}
+                hiddenCount={hiddenCount}
+                onToggleCollapse={onToggleCollapse!}
+              />
+            )}
           </div>
         </div>
       ) : isSketch ? (
@@ -177,9 +246,18 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
                 {nodeData.title}
               </span>
             </div>
-            <span className="font-mono text-[8px] uppercase tracking-wider px-1 py-0.2 rounded" style={{ color: config.color, background: config.bg }}>
-              SKETCH
-            </span>
+            <div className="flex items-center gap-0.5 flex-shrink-0">
+              {showChevron && (
+                <CollapseChevron
+                  collapsed={collapsed}
+                  hiddenCount={hiddenCount}
+                  onToggleCollapse={onToggleCollapse!}
+                />
+              )}
+              <span className="font-mono text-[8px] uppercase tracking-wider px-1 py-0.2 rounded" style={{ color: config.color, background: config.bg }}>
+                SKETCH
+              </span>
+            </div>
           </div>
 
           {/* SVG Artwork Thumbnail Box */}
@@ -244,9 +322,18 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
                 {nodeData.title}
               </span>
             </div>
-            <span className="font-mono text-[8px] uppercase tracking-wider px-1 py-0.2 rounded font-medium" style={{ color: config.color, background: config.bg }}>
-              IMAGE
-            </span>
+            <div className="flex items-center gap-0.5 flex-shrink-0">
+              {showChevron && (
+                <CollapseChevron
+                  collapsed={collapsed}
+                  hiddenCount={hiddenCount}
+                  onToggleCollapse={onToggleCollapse!}
+                />
+              )}
+              <span className="font-mono text-[8px] uppercase tracking-wider px-1 py-0.2 rounded font-medium" style={{ color: config.color, background: config.bg }}>
+                IMAGE
+              </span>
+            </div>
           </div>
 
           {/* Image Frame */}
@@ -275,12 +362,12 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
       ) : (
         /* ─── NOTEBOOK DIAGRAM CHILD NODE ─── */
         <div
-          className="relative px-3 py-2 rounded transition-all cursor-pointer select-none flex items-baseline gap-2"
+          className="relative px-3 py-2 rounded transition-all cursor-pointer select-none flex items-center gap-1.5"
           style={{
             background: selected ? 'var(--surface)' : 'rgba(252, 250, 247, 0.9)',
-            border: `1px solid ${selected ? 'var(--accent-rust)' : 'var(--border)'}`,
+            border: `1px solid ${selected ? 'var(--accent-rust)' : collapsed ? 'rgba(138,73,56,0.35)' : 'var(--border)'}`,
             boxShadow: selected ? '0 0 0 2px rgba(138, 73, 56, 0.15), 0 1px 4px rgba(0,0,0,0.03)' : '0 1px 3px rgba(0,0,0,0.02)',
-            maxWidth: '190px',
+            maxWidth: '200px',
           }}
         >
           {/* Subtle category symbol / dot */}
@@ -292,7 +379,7 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
           </span>
 
           <span
-            className="text-xs font-normal leading-snug group-hover:text-[#8A4938] transition-colors truncate"
+            className="text-xs font-normal leading-snug group-hover:text-[#8A4938] transition-colors truncate flex-1"
             style={{
               color: selected ? 'var(--text-primary)' : '#2D2B29',
               fontWeight: selected ? 500 : 400,
@@ -300,6 +387,14 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
           >
             {nodeData.title}
           </span>
+
+          {showChevron && (
+            <CollapseChevron
+              collapsed={collapsed}
+              hiddenCount={hiddenCount}
+              onToggleCollapse={onToggleCollapse!}
+            />
+          )}
         </div>
       )}
     </div>

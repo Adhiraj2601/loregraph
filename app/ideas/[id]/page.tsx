@@ -16,6 +16,7 @@ import { Navigation } from '@/components/ui/Navigation';
 import { nodeRepo, edgeRepo, ideaRepo, drawingRepo, eraRepo } from '@/lib/storage/repository';
 import { loadWorldMap, uploadWorldMap, removeWorldMap, loadMapSettings, saveMapSettings } from '@/lib/mapStorage';
 import { uploadEntityImage } from '@/lib/imageStorage';
+import { loadCollapsed, saveCollapsed } from '@/lib/collapseStorage';
 import { LoreNode } from '@/types/node';
 import { LoreEdge } from '@/types/edge';
 import { Idea } from '@/types/idea';
@@ -58,6 +59,9 @@ function GraphPageContent() {
   const [eras, setEras] = useState<Era[]>([]);
   const [isTimelineOpen, setIsTimelineOpen] = useState<boolean>(false);
   const imageFileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Collapse state
+  const [collapsedNodeIds, setCollapsedNodeIds] = useState<Set<string>>(new Set());
 
   // Check mobile
   useEffect(() => {
@@ -102,6 +106,9 @@ function GraphPageContent() {
     loadWorldMap(ideaId).then(url => {
       if (url) setMapUrl(url);
     });
+
+    // Load collapse state
+    setCollapsedNodeIds(loadCollapsed(ideaId));
   }, [ideaId, router]);
 
   useEffect(() => {
@@ -152,6 +159,20 @@ function GraphPageContent() {
     setMapFixed(true);
     setIsMapAdjusting(false);
     saveMapSettings(ideaId, { scale: 1, position: { x: 0, y: 0 }, isFixed: true });
+  }, [ideaId]);
+
+  // Collapse/Expand a node branch
+  const handleToggleCollapse = useCallback((nodeId: string) => {
+    setCollapsedNodeIds(prev => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) {
+        next.delete(nodeId);
+      } else {
+        next.add(nodeId);
+      }
+      saveCollapsed(ideaId, next);
+      return next;
+    });
   }, [ideaId]);
 
   // Open node from URL param if given
@@ -358,6 +379,8 @@ function GraphPageContent() {
                 mapFixed={mapFixed}
                 isMapAdjusting={isMapAdjusting}
                 onMapPositionChange={handleMapPositionChange}
+                collapsedNodeIds={collapsedNodeIds}
+                onToggleCollapse={handleToggleCollapse}
               />
 
               <GraphToolbar

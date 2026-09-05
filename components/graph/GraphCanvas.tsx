@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ReactFlow,
   Background,
@@ -25,6 +25,13 @@ import { nodeRepo, edgeRepo } from '@/lib/storage/repository';
 import { DrawingCanvas } from '@/components/graph/DrawingCanvas';
 import { MapBackdrop } from '@/components/graph/MapBackdrop';
 import { DrawingStroke, DrawingTool } from '@/types/drawing';
+import {
+  computeHiddenNodeIds,
+  getVisibleNodes,
+  getVisibleEdges,
+  getHiddenDescendantCounts,
+  getChildCounts,
+} from '@/lib/graphVisibility';
 
 // ─── Local debounce ──────────────────────────────────────────────────────────
 
@@ -141,42 +148,69 @@ const edgeTypes = { loreEdge: LoreEdgeComponent };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function toFlowNodes(loreNodes: LoreNode[], selectedId?: string, isExplore?: boolean): Node[] {
-  return loreNodes.map(n => ({
-    id: n.id,
-    type: 'loreNode',
-    position: n.position,
-    data: {
-      title: n.title,
-      type: n.type,
-      isRoot: n.isRoot,
-      tags: n.tags,
-      strokes: n.strokes,
-      imageUrl: n.imageUrl,
-      isDimmed: false,
-    } satisfies LoreNodeData,
-    selected: n.id === selectedId,
-  }));
+function toFlowNodes(
+  loreNodes: LoreNode[],
+  selectedId: string | undefined,
+  isExplore: boolean | undefined,
+  collapsedIds: Set<string>,
+  hiddenNodeIds: Set<string>,
+  hiddenCounts: Map<string, number>,
+  childCounts: Map<string, number>,
+  onToggleCollapse: (nodeId: string) => void,
+): Node[] {
+  return loreNodes
+    .filter(n => !hiddenNodeIds.has(n.id))
+    .map(n => {
+      const collapsed = collapsedIds.has(n.id);
+      const hiddenCount = hiddenCounts.get(n.id) ?? 0;
+      const hasChildren = (childCounts.get(n.id) ?? 0) > 0;
+
+      return {
+        id: n.id,
+        type: 'loreNode',
+        position: n.position,
+        data: {
+          title: n.title,
+          type: n.type,
+          isRoot: n.isRoot,
+          tags: n.tags,
+          strokes: n.strokes,
+          imageUrl: n.imageUrl,
+          isDimmed: false,
+          collapsed,
+          hiddenCount,
+          hasChildren,
+          onToggleCollapse: (e: React.MouseEvent) => {
+            e.stopPropagation();
+            onToggleCollapse(n.id);
+          },
+        } satisfies LoreNodeData,
+        selected: n.id === selectedId,
+      };
+    });
 }
 
 function toFlowEdges(
   loreEdges: LoreEdgeType[],
+  hiddenNodeIds: Set<string>,
   onUpdateRelationship?: (id: string, rel: string) => void,
-  onDeleteEdge?: (id: string) => void
+  onDeleteEdge?: (id: string) => void,
 ): Edge[] {
-  return loreEdges.map(e => ({
-    id: e.id,
-    source: e.source,
-    target: e.target,
-    sourceHandle: e.sourceHandle || undefined,
-    targetHandle: e.targetHandle || undefined,
-    type: 'loreEdge',
-    data: {
-      relationship: e.relationship || 'connected to',
-      onUpdateRelationship,
-      onDeleteEdge,
-    },
-  }));
+  return loreEdges
+    .filter(e => !hiddenNodeIds.has(e.source) && !hiddenNodeIds.has(e.target))
+    .map(e => ({
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      sourceHandle: e.sourceHandle || undefined,
+      targetHandle: e.targetHandle || undefined,
+      type: 'loreEdge',
+      data: {
+        relationship: e.relationship || 'connected to',
+        onUpdateRelationship,
+        onDeleteEdge,
+      },
+    }));
 }
 
 // ─── Main Graph Canvas ───────────────────────────────────────────────────────
@@ -202,6 +236,9 @@ interface GraphCanvasProps {
   mapFixed?: boolean;
   isMapAdjusting?: boolean;
   onMapPositionChange?: (pos: { x: number; y: number }) => void;
+  // Collapse feature
+  collapsedNodeIds?: Set<string>;
+  onToggleCollapse?: (nodeId: string) => void;
 }
 
 export function GraphCanvas({
@@ -225,10 +262,16 @@ export function GraphCanvas({
   mapFixed = true,
   isMapAdjusting = false,
   onMapPositionChange,
+  collapsedNodeIds,
+  onToggleCollapse,
 }: GraphCanvasProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const { fitView, setCenter, screenToFlowPosition } = useReactFlow();
+
+  // ── Stable references to all nodes/edges from storage (complete graph) ──
+  const allLoreNodesRef = useRef<LoreNode[]>([]);
+  const allLoreEdgesRef = useRef<LoreEdgeType[]>([]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -257,27 +300,68 @@ export function GraphCanvas({
 
   const handleUpdateRelationship = useCallback((id: string, relationship: string) => {
     edgeRepo.update(id, { relationship });
-    const loreEdges = edgeRepo.getAllByIdeaId(ideaId);
-    setEdges(toFlowEdges(loreEdges, handleUpdateRelationship, handleDeleteEdge));
-  }, [ideaId, setEdges]);
+    allLoreEdgesRef.current = edgeRepo.getAllByIdeaId(ideaId);
+    rebuildGraph();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ideaId]);
 
   const handleDeleteEdge = useCallback((id: string) => {
     edgeRepo.delete(id);
-    const loreEdges = edgeRepo.getAllByIdeaId(ideaId);
-    setEdges(toFlowEdges(loreEdges, handleUpdateRelationship, handleDeleteEdge));
-  }, [ideaId, setEdges, handleUpdateRelationship]);
+    allLoreEdgesRef.current = edgeRepo.getAllByIdeaId(ideaId);
+    rebuildGraph();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ideaId]);
+
+  // ── Core rebuild: derive visible graph from complete graph + collapse state ──
+  const rebuildGraph = useCallback(() => {
+    const allNodes = allLoreNodesRef.current;
+    const allEdges = allLoreEdgesRef.current;
+    const collapsed = collapsedNodeIds ?? new Set<string>();
+    const toggleFn = onToggleCollapse ?? (() => {});
+
+    // Memoised visibility computations
+    const hiddenNodeIds = computeHiddenNodeIds(collapsed, allNodes, allEdges);
+    const hiddenCounts = getHiddenDescendantCounts(collapsed, hiddenNodeIds, allEdges);
+    const childCounts = getChildCounts(allEdges);
+
+    const flowNodes = toFlowNodes(
+      allNodes,
+      selectedNodeId ?? undefined,
+      isExploreMode,
+      collapsed,
+      hiddenNodeIds,
+      hiddenCounts,
+      childCounts,
+      toggleFn,
+    );
+
+    const flowEdges = toFlowEdges(
+      allEdges,
+      hiddenNodeIds,
+      handleUpdateRelationship,
+      handleDeleteEdge,
+    );
+
+    setNodes(flowNodes);
+    setEdges(flowEdges);
+  }, [collapsedNodeIds, onToggleCollapse, selectedNodeId, isExploreMode, handleUpdateRelationship, handleDeleteEdge, setNodes, setEdges]);
 
   // Load data
   const loadGraph = useCallback(() => {
-    const loreNodes = nodeRepo.getAllByIdeaId(ideaId);
-    const loreEdges = edgeRepo.getAllByIdeaId(ideaId);
-    setNodes(toFlowNodes(loreNodes, selectedNodeId ?? undefined, isExploreMode));
-    setEdges(toFlowEdges(loreEdges, handleUpdateRelationship, handleDeleteEdge));
-  }, [ideaId, selectedNodeId, isExploreMode, setNodes, setEdges, handleUpdateRelationship, handleDeleteEdge]);
+    allLoreNodesRef.current = nodeRepo.getAllByIdeaId(ideaId);
+    allLoreEdgesRef.current = edgeRepo.getAllByIdeaId(ideaId);
+    rebuildGraph();
+  }, [ideaId, rebuildGraph]);
 
   useEffect(() => {
     loadGraph();
   }, [loadGraph, refreshKey]);
+
+  // Re-derive visible graph when collapse state or selection changes without full reload
+  useEffect(() => {
+    rebuildGraph();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collapsedNodeIds, selectedNodeId]);
 
   // Fit view on initial load
   useEffect(() => {
@@ -294,7 +378,7 @@ export function GraphCanvas({
       setNodes(ns => ns.map(n => ({ ...n, data: { ...n.data, isDimmed: false } })));
       return;
     }
-    const loreEdges = edgeRepo.getAllByIdeaId(ideaId);
+    const loreEdges = allLoreEdgesRef.current;
     const connected = new Set<string>([selectedNodeId]);
     loreEdges.forEach(e => {
       if (e.source === selectedNodeId) connected.add(e.target);
@@ -304,7 +388,7 @@ export function GraphCanvas({
       ...n,
       data: { ...n.data, isDimmed: !connected.has(n.id) },
     })));
-  }, [selectedNodeId, isExploreMode, ideaId, setNodes]);
+  }, [selectedNodeId, isExploreMode, setNodes]);
 
   const handleNodesChange = useCallback(
     (changes: Parameters<typeof onNodesChange>[0]) => {
@@ -322,7 +406,7 @@ export function GraphCanvas({
       const relInput = window.prompt('Name this relationship (e.g. "wields", "allied with", "created by"):', 'connected to');
       if (relInput === null) return; // User cancelled
       const relationship = relInput.trim() || 'connected to';
-      const edge = edgeRepo.create({
+      edgeRepo.create({
         ideaId,
         source: connection.source!,
         target: connection.target!,
@@ -330,10 +414,10 @@ export function GraphCanvas({
         targetHandle: connection.targetHandle || null,
         relationship,
       });
-      const loreEdges = edgeRepo.getAllByIdeaId(ideaId);
-      setEdges(toFlowEdges(loreEdges, handleUpdateRelationship, handleDeleteEdge));
+      allLoreEdgesRef.current = edgeRepo.getAllByIdeaId(ideaId);
+      rebuildGraph();
     },
-    [ideaId, setEdges, handleUpdateRelationship, handleDeleteEdge]
+    [ideaId, rebuildGraph]
   );
 
   const handleNodeClick = useCallback(
