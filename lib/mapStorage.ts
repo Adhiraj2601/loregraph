@@ -2,18 +2,30 @@
 
 import { supabase } from '@/lib/supabase';
 import { readFileAsDataUrl } from '@/lib/imageStorage';
+import { idbGet, idbSet, idbDelete } from '@/lib/idbStorage';
+import { nodeRepo } from '@/lib/storage/repository';
 
 const BUCKET = 'world-maps';
 const localKey = (ideaId: string) => `loregraph:map:${ideaId}`;
+const idbKey = (ideaId: string) => `map:${ideaId}`;
 
-// ─── Upload map image with guaranteed persistent fallback ─────────────────────
+// ─── Upload map image with guaranteed persistent multi-layer storage ──────────
 
 export async function uploadWorldMap(ideaId: string, file: File): Promise<string | null> {
-  // 1. Convert to base64 Data URL so it permanently survives reloads & offline
   let dataUrl: string | null = null;
   try {
     dataUrl = await readFileAsDataUrl(file);
-    localStorage.setItem(localKey(ideaId), dataUrl);
+    // 1. Save to IndexedDB (unlimited quota, permanent across deployments)
+    await idbSet(idbKey(ideaId), dataUrl);
+    // 2. Save to localStorage (if small enough)
+    try {
+      localStorage.setItem(localKey(ideaId), dataUrl);
+    } catch {}
+    // 3. Save to ROOT node so it syncs with Supabase database
+    const rootNode = nodeRepo.getAllByIdeaId(ideaId).find(n => n.isRoot);
+    if (rootNode) {
+      nodeRepo.update(rootNode.id, { imageUrl: dataUrl });
+    }
   } catch (e) {
     console.warn('Failed to encode map as data URL:', e);
   }
@@ -31,7 +43,7 @@ export async function uploadWorldMap(ideaId: string, file: File): Promise<string
       .upload(path, file, { upsert: true, cacheControl: '3600' });
 
     if (error) {
-      console.warn('Map upload error (using local persistent Data URL):', error.message);
+      console.warn('Map upload error (using local persistent IndexedDB storage):', error.message);
       return dataUrl;
     }
 
@@ -39,7 +51,14 @@ export async function uploadWorldMap(ideaId: string, file: File): Promise<string
     const publicUrl = data.publicUrl;
 
     if (publicUrl) {
-      localStorage.setItem(localKey(ideaId), publicUrl);
+      await idbSet(idbKey(ideaId), publicUrl);
+      try {
+        localStorage.setItem(localKey(ideaId), publicUrl);
+      } catch {}
+      const rootNode = nodeRepo.getAllByIdeaId(ideaId).find(n => n.isRoot);
+      if (rootNode) {
+        nodeRepo.update(rootNode.id, { imageUrl: publicUrl });
+      }
       return publicUrl;
     }
 
@@ -50,19 +69,32 @@ export async function uploadWorldMap(ideaId: string, file: File): Promise<string
   }
 }
 
-// ─── Load map URL (localStorage persistent cache + Supabase SDK) ──────────────
+// ─── Load map URL (IndexedDB -> localStorage -> ROOT node -> Supabase Storage) ─
 
 export async function loadWorldMap(ideaId: string): Promise<string | null> {
-  // 1. Check localStorage cache
-  const cached = localStorage.getItem(localKey(ideaId));
-  if (cached) {
-    // If it's a dead session blob URL, ignore it; otherwise data URL or public URL is valid
-    if (!cached.startsWith('blob:')) {
-      return cached;
-    }
+  // 1. Check IndexedDB (primary local storage, permanent across deployments)
+  const idbCached = await idbGet<string>(idbKey(ideaId));
+  if (idbCached && !idbCached.startsWith('blob:')) {
+    return idbCached;
   }
 
-  // 2. Query Supabase Storage directly
+  // 2. Check localStorage cache
+  try {
+    const cached = localStorage.getItem(localKey(ideaId));
+    if (cached && !cached.startsWith('blob:')) {
+      await idbSet(idbKey(ideaId), cached);
+      return cached;
+    }
+  } catch {}
+
+  // 3. Check ROOT node's imageUrl (synced via database)
+  const rootNode = nodeRepo.getAllByIdeaId(ideaId).find(n => n.isRoot);
+  if (rootNode?.imageUrl && !rootNode.imageUrl.startsWith('blob:')) {
+    await idbSet(idbKey(ideaId), rootNode.imageUrl);
+    return rootNode.imageUrl;
+  }
+
+  // 4. Query Supabase Storage via SDK list
   if (!supabase) return null;
   try {
     const { data: files, error } = await supabase.storage.from(BUCKET).list(ideaId);
@@ -71,7 +103,10 @@ export async function loadWorldMap(ideaId: string): Promise<string | null> {
       if (mapFile) {
         const { data } = supabase.storage.from(BUCKET).getPublicUrl(`${ideaId}/${mapFile.name}`);
         if (data?.publicUrl) {
-          localStorage.setItem(localKey(ideaId), data.publicUrl);
+          await idbSet(idbKey(ideaId), data.publicUrl);
+          try {
+            localStorage.setItem(localKey(ideaId), data.publicUrl);
+          } catch {}
           return data.publicUrl;
         }
       }
@@ -86,9 +121,17 @@ export async function loadWorldMap(ideaId: string): Promise<string | null> {
 // ─── Remove map from storage + local caches ──────────────────────────────────
 
 export async function removeWorldMap(ideaId: string): Promise<void> {
-  localStorage.removeItem(localKey(ideaId));
-  localStorage.removeItem(settingsKey(ideaId));
-  sessionStorage.removeItem(localKey(ideaId));
+  await idbDelete(idbKey(ideaId));
+  try {
+    localStorage.removeItem(localKey(ideaId));
+    localStorage.removeItem(settingsKey(ideaId));
+    sessionStorage.removeItem(localKey(ideaId));
+  } catch {}
+
+  const rootNode = nodeRepo.getAllByIdeaId(ideaId).find(n => n.isRoot);
+  if (rootNode) {
+    nodeRepo.update(rootNode.id, { imageUrl: undefined });
+  }
 
   if (!supabase) return;
   try {
