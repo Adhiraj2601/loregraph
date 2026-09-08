@@ -280,7 +280,47 @@ export function GraphCanvas({
 }: GraphCanvasProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
-  const { fitView, setCenter, screenToFlowPosition } = useReactFlow();
+  const { fitView, setCenter, screenToFlowPosition, getViewport, setViewport } = useReactFlow();
+
+  // ── WASD & Arrow Keys Graph Navigation / Panning ──
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore keystrokes when typing inside form controls or editable areas
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable ||
+          target.closest('input, textarea, select, [contenteditable="true"], .nodrag'))
+      ) {
+        return;
+      }
+
+      // Ignore if modifier keys like Ctrl/Meta/Alt are held (e.g. Ctrl+S, Ctrl+A)
+      if (e.ctrlKey || e.metaKey || e.altKey) {
+        return;
+      }
+
+      const key = e.key.toLowerCase();
+      const step = e.shiftKey ? 120 : 50;
+      const vp = getViewport();
+
+      if (key === 'w' || e.key === 'ArrowUp') {
+        setViewport({ ...vp, y: vp.y + step });
+      } else if (key === 's' || e.key === 'ArrowDown') {
+        setViewport({ ...vp, y: vp.y - step });
+      } else if (key === 'a' || e.key === 'ArrowLeft') {
+        setViewport({ ...vp, x: vp.x + step });
+      } else if (key === 'd' || e.key === 'ArrowRight') {
+        setViewport({ ...vp, x: vp.x - step });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [getViewport, setViewport]);
 
   // ── Stable references to all nodes/edges from storage (complete graph) ──
   const allLoreNodesRef = useRef<LoreNode[]>([]);

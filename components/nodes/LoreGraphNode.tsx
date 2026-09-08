@@ -119,8 +119,10 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
           minHeight={70}
           maxWidth={600}
           maxHeight={600}
-          lineClassName="!border-[#8A4938] !border-dashed"
-          handleClassName="!w-2.5 !h-2.5 !bg-[#8A4938] !border-2 !border-[#FAF8F4] !rounded-full shadow"
+          lineClassName="!border-[#8A4938] !border-dashed !z-40"
+          handleClassName="!w-3 !h-3 !bg-[#8A4938] !border-2 !border-[#FAF8F4] !rounded-full shadow-md !z-50"
+          handleStyle={{ zIndex: 50 }}
+          lineStyle={{ zIndex: 40 }}
         />
       )}
 
