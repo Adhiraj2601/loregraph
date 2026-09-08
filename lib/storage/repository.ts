@@ -167,6 +167,8 @@ export async function syncFromSupabase(): Promise<boolean> {
         type: n.type,
         tags: Array.isArray(n.tags) ? n.tags : [],
         position: n.position || { x: 300, y: 200 },
+        width: n.width ?? undefined,
+        height: n.height ?? undefined,
         strokes: Array.isArray(n.strokes) ? n.strokes : [],
         year: n.year ?? undefined,
         endYear: n.end_year ?? n.endYear ?? undefined,

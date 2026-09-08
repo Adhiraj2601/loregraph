@@ -24,6 +24,8 @@ export interface LoreNode {
   type: NodeType;
   tags: string[];
   position: { x: number; y: number };
+  width?: number;
+  height?: number;
   imageUrl?: string;
   strokes?: DrawingStroke[];
   year?: number;
@@ -42,6 +44,8 @@ export interface CreateNodeInput {
   type: NodeType;
   tags: string[];
   position?: { x: number; y: number };
+  width?: number;
+  height?: number;
   imageUrl?: string;
   strokes?: DrawingStroke[];
   year?: number;

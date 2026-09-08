@@ -175,6 +175,7 @@ function toFlowNodes(
         id: n.id,
         type: 'loreNode',
         position: n.position,
+        style: n.width && n.height ? { width: n.width, height: n.height } : undefined,
         data: {
           title: n.title,
           type: n.type,
@@ -182,6 +183,8 @@ function toFlowNodes(
           tags: n.tags,
           strokes: n.strokes,
           imageUrl: n.imageUrl,
+          width: n.width,
+          height: n.height,
           isDimmed: false,
           collapsed,
           hiddenCount,
@@ -401,13 +404,21 @@ export function GraphCanvas({
     (changes: Parameters<typeof onNodesChange>[0]) => {
       onNodesChange(changes);
 
-      // Synchronously update node positions in allLoreNodesRef so rebuildGraph never reverts to old coords
+      // Synchronously update node positions and dimensions in allLoreNodesRef
       changes.forEach(c => {
         if (c.type === 'position' && c.position) {
           const target = allLoreNodesRef.current.find(n => n.id === c.id);
           if (target) {
             target.position = { ...c.position };
           }
+        }
+        if (c.type === 'dimensions' && c.dimensions) {
+          const target = allLoreNodesRef.current.find(n => n.id === c.id);
+          if (target) {
+            target.width = c.dimensions.width;
+            target.height = c.dimensions.height;
+          }
+          nodeRepo.update(c.id, { width: c.dimensions.width, height: c.dimensions.height });
         }
       });
 
