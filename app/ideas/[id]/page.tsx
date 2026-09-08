@@ -48,12 +48,17 @@ function GraphPageContent() {
 
   // World Map Backdrop state
   const [mapUrl, setMapUrl] = useState<string | null>(null);
-  const [mapOpacity, setMapOpacity] = useState<number>(0.5);
+  const [mapOpacity, setMapOpacity] = useState<number>(0.6);
   const [mapScale, setMapScale] = useState<number>(1);
   const [mapPosition, setMapPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [mapFixed, setMapFixed] = useState<boolean>(true);
   const [isMapAdjusting, setIsMapAdjusting] = useState<boolean>(false);
   const [isMapUploading, setIsMapUploading] = useState<boolean>(false);
+  const [backdropMode, setBackdropMode] = useState<'map' | 'ambient'>('map');
+  const [mapBlur, setMapBlur] = useState<number>(16);
+  const [mapPixelate, setMapPixelate] = useState<boolean>(false);
+  const [mapDimming, setMapDimming] = useState<number>(25);
+  const [mapFitMode, setMapFitMode] = useState<'contain' | 'cover'>('cover');
 
   // Timeline / Epochs state
   const [eras, setEras] = useState<Era[]>([]);
@@ -102,6 +107,11 @@ function GraphPageContent() {
     setMapScale(mapSettings.scale);
     setMapPosition(mapSettings.position);
     setMapFixed(mapSettings.isFixed);
+    setBackdropMode(mapSettings.backdropMode ?? 'map');
+    setMapBlur(mapSettings.blur ?? 16);
+    setMapPixelate(mapSettings.pixelate ?? false);
+    setMapDimming(mapSettings.dimming ?? 25);
+    setMapFitMode(mapSettings.fitMode ?? 'cover');
 
     loadWorldMap(ideaId).then(url => {
       if (url) setMapUrl(url);
@@ -124,7 +134,7 @@ function GraphPageContent() {
   }, [ideaId]);
 
   const handleMapRemove = useCallback(async () => {
-    if (window.confirm('Remove world map backdrop?')) {
+    if (window.confirm('Remove world backdrop?')) {
       await removeWorldMap(ideaId);
       setMapUrl(null);
     }
@@ -153,12 +163,57 @@ function GraphPageContent() {
     });
   }, [ideaId]);
 
+  const handleBackdropModeChange = useCallback((mode: 'map' | 'ambient') => {
+    setBackdropMode(mode);
+    saveMapSettings(ideaId, { backdropMode: mode });
+  }, [ideaId]);
+
+  const handleMapBlurChange = useCallback((blur: number) => {
+    setMapBlur(blur);
+    saveMapSettings(ideaId, { blur });
+  }, [ideaId]);
+
+  const handleToggleMapPixelate = useCallback(() => {
+    setMapPixelate(prev => {
+      const next = !prev;
+      saveMapSettings(ideaId, { pixelate: next });
+      return next;
+    });
+  }, [ideaId]);
+
+  const handleMapDimmingChange = useCallback((dimming: number) => {
+    setMapDimming(dimming);
+    saveMapSettings(ideaId, { dimming });
+  }, [ideaId]);
+
+  const handleToggleMapFitMode = useCallback(() => {
+    setMapFitMode(prev => {
+      const next = prev === 'cover' ? 'contain' : 'cover';
+      saveMapSettings(ideaId, { fitMode: next });
+      return next;
+    });
+  }, [ideaId]);
+
   const handleResetMap = useCallback(() => {
     setMapScale(1);
     setMapPosition({ x: 0, y: 0 });
     setMapFixed(true);
+    setBackdropMode('map');
+    setMapBlur(16);
+    setMapPixelate(false);
+    setMapDimming(25);
+    setMapFitMode('cover');
     setIsMapAdjusting(false);
-    saveMapSettings(ideaId, { scale: 1, position: { x: 0, y: 0 }, isFixed: true });
+    saveMapSettings(ideaId, {
+      scale: 1,
+      position: { x: 0, y: 0 },
+      isFixed: true,
+      backdropMode: 'map',
+      blur: 16,
+      pixelate: false,
+      dimming: 25,
+      fitMode: 'cover',
+    });
   }, [ideaId]);
 
   // Collapse/Expand a node branch
@@ -371,7 +426,6 @@ function GraphPageContent() {
                 activeSize={activeSize}
                 strokes={strokes}
                 onStrokesChange={handleStrokesChange}
-                refreshKey={refreshKey}
                 mapUrl={mapUrl}
                 mapOpacity={mapOpacity}
                 mapScale={mapScale}
@@ -379,6 +433,11 @@ function GraphPageContent() {
                 mapFixed={mapFixed}
                 isMapAdjusting={isMapAdjusting}
                 onMapPositionChange={handleMapPositionChange}
+                backdropMode={backdropMode}
+                mapBlur={mapBlur}
+                mapPixelate={mapPixelate}
+                mapDimming={mapDimming}
+                mapFitMode={mapFitMode}
                 collapsedNodeIds={collapsedNodeIds}
                 onToggleCollapse={handleToggleCollapse}
               />
@@ -426,7 +485,7 @@ function GraphPageContent() {
                 canUndo={strokes.length > 0}
               />
 
-              {/* World Map Backdrop Toolbar */}
+              {/* World Backdrop & Map Toolbar */}
               {!isDrawingMode && (
                 <MapToolbar
                   mapUrl={mapUrl}
@@ -435,11 +494,21 @@ function GraphPageContent() {
                   isFixed={mapFixed}
                   isAdjusting={isMapAdjusting}
                   isUploading={isMapUploading}
+                  backdropMode={backdropMode}
+                  blur={mapBlur}
+                  pixelate={mapPixelate}
+                  dimming={mapDimming}
+                  fitMode={mapFitMode}
                   onUpload={handleMapUpload}
                   onOpacityChange={handleMapOpacityChange}
                   onScaleChange={handleMapScaleChange}
                   onToggleFixed={handleToggleMapFixed}
                   onToggleAdjusting={() => setIsMapAdjusting(v => !v)}
+                  onBackdropModeChange={handleBackdropModeChange}
+                  onBlurChange={handleMapBlurChange}
+                  onTogglePixelate={handleToggleMapPixelate}
+                  onDimmingChange={handleMapDimmingChange}
+                  onToggleFitMode={handleToggleMapFitMode}
                   onReset={handleResetMap}
                   onRemove={handleMapRemove}
                 />

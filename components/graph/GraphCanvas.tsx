@@ -249,6 +249,12 @@ interface GraphCanvasProps {
   mapFixed?: boolean;
   isMapAdjusting?: boolean;
   onMapPositionChange?: (pos: { x: number; y: number }) => void;
+  // Ambient & Pixelated Wallpaper options
+  backdropMode?: 'map' | 'ambient';
+  mapBlur?: number;
+  mapPixelate?: boolean;
+  mapDimming?: number;
+  mapFitMode?: 'contain' | 'cover';
   // Collapse feature
   collapsedNodeIds?: Set<string>;
   onToggleCollapse?: (nodeId: string) => void;
@@ -275,6 +281,11 @@ export function GraphCanvas({
   mapFixed = true,
   isMapAdjusting = false,
   onMapPositionChange,
+  backdropMode = 'map',
+  mapBlur = 16,
+  mapPixelate = false,
+  mapDimming = 25,
+  mapFitMode = 'cover',
   collapsedNodeIds,
   onToggleCollapse,
 }: GraphCanvasProps) {
@@ -635,7 +646,7 @@ export function GraphCanvas({
         color="rgba(162, 158, 149, 0.45)"
       />
 
-      {/* World Map Backdrop Layer */}
+      {/* World Map & Ambient Backdrop Layer */}
       {mapUrl && (
         <MapBackdrop
           mapUrl={mapUrl}
@@ -645,6 +656,11 @@ export function GraphCanvas({
           isFixed={mapFixed}
           isAdjusting={isMapAdjusting}
           onPositionChange={onMapPositionChange}
+          backdropMode={backdropMode}
+          blur={mapBlur}
+          pixelate={mapPixelate}
+          dimming={mapDimming}
+          fitMode={mapFitMode}
         />
       )}
 

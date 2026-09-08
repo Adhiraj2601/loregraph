@@ -154,13 +154,23 @@ export interface WorldMapSettings {
   scale: number;
   position: { x: number; y: number };
   isFixed: boolean;
+  backdropMode?: 'map' | 'ambient';
+  blur?: number; // 0–30px
+  pixelate?: boolean;
+  dimming?: number; // 0–80%
+  fitMode?: 'contain' | 'cover';
 }
 
 export const DEFAULT_MAP_SETTINGS: WorldMapSettings = {
-  opacity: 0.5,
+  opacity: 0.6,
   scale: 1,
   position: { x: 0, y: 0 },
   isFixed: true, // Default to true so nodes do NOT stick to the map
+  backdropMode: 'map',
+  blur: 16,
+  pixelate: false,
+  dimming: 25,
+  fitMode: 'cover',
 };
 
 export function loadMapSettings(ideaId: string): WorldMapSettings {
