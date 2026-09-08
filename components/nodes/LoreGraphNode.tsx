@@ -243,9 +243,9 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
             boxShadow: selected
               ? '0 0 0 2.5px rgba(138, 73, 56, 0.15), 0 2px 8px rgba(0,0,0,0.05)'
               : '0 1px 4px rgba(0,0,0,0.03)',
-            width: nodeData.width ? `${nodeData.width}px` : '150px',
-            height: nodeData.height ? `${nodeData.height}px` : 'auto',
-            minWidth: '100px',
+            width: '100%',
+            height: '100%',
+            minWidth: '110px',
             minHeight: '80px',
           }}
         >
@@ -273,7 +273,7 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
 
           {/* SVG Artwork Thumbnail Box */}
           <div
-            className="w-full flex-1 min-h-[60px] rounded overflow-hidden border flex items-center justify-center relative transition-colors bg-[#FAF8F4] p-1"
+            className="w-full flex-1 min-h-[50px] rounded overflow-hidden border flex items-center justify-center relative transition-colors bg-[#FAF8F4] p-1"
             style={{
               borderColor: 'var(--border-light)',
             }}
@@ -312,7 +312,7 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
           </div>
         </div>
       ) : isImage ? (
-        /* ─── VISUAL IMAGE ENTITY CARD (RESIZABLE & COMPACT) ─── */
+        /* ─── VISUAL IMAGE ENTITY CARD (RESIZABLE) ─── */
         <div
           className="relative p-2 rounded-md transition-all cursor-pointer select-none flex flex-col h-full w-full"
           style={{
@@ -321,9 +321,9 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
             boxShadow: selected
               ? '0 0 0 2.5px rgba(138, 73, 56, 0.15), 0 3px 10px rgba(0,0,0,0.06)'
               : '0 1px 4px rgba(0,0,0,0.04)',
-            width: nodeData.width ? `${nodeData.width}px` : '150px',
-            height: nodeData.height ? `${nodeData.height}px` : 'auto',
-            minWidth: '100px',
+            width: '100%',
+            height: '100%',
+            minWidth: '110px',
             minHeight: '80px',
           }}
         >
@@ -349,9 +349,9 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
             </div>
           </div>
 
-          {/* Image Frame - Displays Full Uncropped Image */}
+          {/* Image Frame - Fills entire card space & displays full image */}
           <div
-            className="w-full flex-1 min-h-[60px] rounded overflow-hidden border flex items-center justify-center relative bg-[#FAF8F4] group-hover:brightness-95 transition-all p-1"
+            className="w-full flex-1 min-h-[50px] rounded overflow-hidden border flex items-center justify-center relative bg-[#FAF8F4] group-hover:brightness-95 transition-all p-1"
             style={{ borderColor: 'var(--border-light)' }}
           >
             {nodeData.imageUrl ? (

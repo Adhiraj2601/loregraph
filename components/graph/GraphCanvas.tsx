@@ -171,11 +171,15 @@ function toFlowNodes(
       const hiddenCount = hiddenCounts.get(n.id) ?? 0;
       const hasChildren = (childCounts.get(n.id) ?? 0) > 0;
 
+      const isResizable = n.type === 'IMAGE' || n.type === 'SKETCH';
+      const nodeWidth = n.width ?? (isResizable ? 160 : undefined);
+      const nodeHeight = n.height ?? (isResizable ? 160 : undefined);
+
       return {
         id: n.id,
         type: 'loreNode',
         position: n.position,
-        style: n.width && n.height ? { width: n.width, height: n.height } : undefined,
+        style: nodeWidth || nodeHeight ? { width: nodeWidth, height: nodeHeight } : undefined,
         data: {
           title: n.title,
           type: n.type,
@@ -183,8 +187,8 @@ function toFlowNodes(
           tags: n.tags,
           strokes: n.strokes,
           imageUrl: n.imageUrl,
-          width: n.width,
-          height: n.height,
+          width: nodeWidth,
+          height: nodeHeight,
           isDimmed: false,
           collapsed,
           hiddenCount,
