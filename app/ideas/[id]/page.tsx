@@ -14,7 +14,8 @@ import { MapToolbar } from '@/components/graph/MapToolbar';
 import { TimelineDrawer } from '@/components/timeline/TimelineDrawer';
 import { Navigation } from '@/components/ui/Navigation';
 import { nodeRepo, edgeRepo, ideaRepo, drawingRepo, eraRepo } from '@/lib/storage/repository';
-import { loadWorldMap, uploadWorldMap, removeWorldMap, loadMapSettings, saveMapSettings } from '@/lib/mapStorage';
+import { loadWorldMap, uploadWorldMap, removeWorldMap, loadMapSettings, saveMapSettings, setWorldMapUrl } from '@/lib/mapStorage';
+import { DefaultBackground } from '@/lib/defaultBackgrounds';
 import { uploadEntityImage } from '@/lib/imageStorage';
 import { loadCollapsed, saveCollapsed } from '@/lib/collapseStorage';
 import { LoreNode } from '@/types/node';
@@ -191,6 +192,23 @@ function GraphPageContent() {
       const next = prev === 'cover' ? 'contain' : 'cover';
       saveMapSettings(ideaId, { fitMode: next });
       return next;
+    });
+  }, [ideaId]);
+
+  const handleSelectPresetBackground = useCallback(async (preset: DefaultBackground) => {
+    setMapUrl(preset.url);
+    setBackdropMode(preset.recommendedMode);
+    setMapBlur(preset.recommendedBlur);
+    setMapPixelate(preset.recommendedPixelate);
+    setMapDimming(preset.recommendedDimming);
+    setMapFitMode('cover');
+    await setWorldMapUrl(ideaId, preset.url);
+    saveMapSettings(ideaId, {
+      backdropMode: preset.recommendedMode,
+      blur: preset.recommendedBlur,
+      pixelate: preset.recommendedPixelate,
+      dimming: preset.recommendedDimming,
+      fitMode: 'cover',
     });
   }, [ideaId]);
 
@@ -500,6 +518,7 @@ function GraphPageContent() {
                   dimming={mapDimming}
                   fitMode={mapFitMode}
                   onUpload={handleMapUpload}
+                  onSelectPreset={handleSelectPresetBackground}
                   onOpacityChange={handleMapOpacityChange}
                   onScaleChange={handleMapScaleChange}
                   onToggleFixed={handleToggleMapFixed}

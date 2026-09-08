@@ -118,6 +118,19 @@ export async function loadWorldMap(ideaId: string): Promise<string | null> {
   return null;
 }
 
+// ─── Set map/background URL directly (e.g. from preset galleries) ─────────────
+
+export async function setWorldMapUrl(ideaId: string, url: string): Promise<void> {
+  await idbSet(idbKey(ideaId), url);
+  try {
+    localStorage.setItem(localKey(ideaId), url);
+  } catch {}
+  const rootNode = nodeRepo.getAllByIdeaId(ideaId).find(n => n.isRoot);
+  if (rootNode) {
+    nodeRepo.update(rootNode.id, { imageUrl: url });
+  }
+}
+
 // ─── Remove map from storage + local caches ──────────────────────────────────
 
 export async function removeWorldMap(ideaId: string): Promise<void> {
