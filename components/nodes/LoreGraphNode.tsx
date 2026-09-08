@@ -115,10 +115,10 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
       {selected && (isImage || isSketch) && (
         <NodeResizer
           isVisible={selected}
-          minWidth={100}
-          minHeight={70}
-          maxWidth={600}
-          maxHeight={600}
+          minWidth={120}
+          minHeight={90}
+          maxWidth={800}
+          maxHeight={800}
           lineClassName="!border-[#8A4938] !border-dashed !z-40"
           handleClassName="!w-3 !h-3 !bg-[#8A4938] !border-2 !border-[#FAF8F4] !rounded-full shadow-md !z-50"
           handleStyle={{ zIndex: 50 }}
@@ -238,7 +238,7 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
       ) : isSketch ? (
         /* ─── SKETCH NOTE CARD (RESIZABLE) ─── */
         <div
-          className="relative p-2 rounded-md transition-all cursor-pointer select-none flex flex-col h-full w-full"
+          className="relative p-2 rounded-md transition-all cursor-pointer select-none flex flex-col h-full w-full box-border overflow-hidden"
           style={{
             background: selected ? 'var(--surface)' : 'rgba(252, 250, 247, 0.96)',
             border: `1.5px solid ${selected ? 'var(--accent-rust)' : 'var(--border)'}`,
@@ -247,8 +247,6 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
               : '0 1px 4px rgba(0,0,0,0.03)',
             width: '100%',
             height: '100%',
-            minWidth: '110px',
-            minHeight: '80px',
           }}
         >
           {/* Card Header */}
@@ -275,7 +273,7 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
 
           {/* SVG Artwork Thumbnail Box */}
           <div
-            className="w-full flex-1 min-h-[50px] rounded overflow-hidden border flex items-center justify-center relative transition-colors bg-[#FAF8F4] p-1"
+            className="w-full flex-1 min-h-0 rounded overflow-hidden border flex items-center justify-center relative transition-colors bg-[#FAF8F4] p-1"
             style={{
               borderColor: 'var(--border-light)',
             }}
@@ -304,8 +302,8 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
                 })}
               </svg>
             ) : (
-              <div className="text-center p-2">
-                <span className="text-base block mb-0.5" style={{ color: 'var(--text-tertiary)' }}>✎</span>
+              <div className="text-center p-1">
+                <span className="text-sm block mb-0.5" style={{ color: 'var(--text-tertiary)' }}>✎</span>
                 <span className="font-serif italic text-[10px] block" style={{ color: 'var(--text-tertiary)' }}>
                   Empty Sketch
                 </span>
@@ -316,7 +314,7 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
       ) : isImage ? (
         /* ─── VISUAL IMAGE ENTITY CARD (RESIZABLE) ─── */
         <div
-          className="relative p-2 rounded-md transition-all cursor-pointer select-none flex flex-col h-full w-full"
+          className="relative p-2 rounded-md transition-all cursor-pointer select-none flex flex-col h-full w-full box-border overflow-hidden"
           style={{
             background: selected ? 'var(--surface)' : 'rgba(252, 250, 247, 0.98)',
             border: `1.5px solid ${selected ? 'var(--accent-rust)' : 'var(--border)'}`,
@@ -325,8 +323,6 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
               : '0 1px 4px rgba(0,0,0,0.04)',
             width: '100%',
             height: '100%',
-            minWidth: '110px',
-            minHeight: '80px',
           }}
         >
           {/* Card Header */}
@@ -353,7 +349,7 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
 
           {/* Image Frame - Fills entire card space & displays full image */}
           <div
-            className="w-full flex-1 min-h-[50px] rounded overflow-hidden border flex items-center justify-center relative bg-[#FAF8F4] group-hover:brightness-95 transition-all p-1"
+            className="w-full flex-1 min-h-0 rounded overflow-hidden border flex items-center justify-center relative bg-[#FAF8F4] group-hover:brightness-95 transition-all p-1"
             style={{ borderColor: 'var(--border-light)' }}
           >
             {nodeData.imageUrl ? (
@@ -365,8 +361,8 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
                 loading="lazy"
               />
             ) : (
-              <div className="text-center p-2">
-                <span className="text-base block mb-0.5" style={{ color: 'var(--text-tertiary)' }}>▣</span>
+              <div className="text-center p-1">
+                <span className="text-sm block mb-0.5" style={{ color: 'var(--text-tertiary)' }}>▣</span>
                 <span className="font-serif italic text-[10px] block" style={{ color: 'var(--text-tertiary)' }}>
                   No image attached
                 </span>

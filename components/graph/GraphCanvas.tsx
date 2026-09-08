@@ -282,10 +282,59 @@ export function GraphCanvas({
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const { fitView, setCenter, screenToFlowPosition, getViewport, setViewport } = useReactFlow();
 
-  // ── WASD & Arrow Keys Graph Navigation / Panning ──
+  // ── Ultra-Smooth WASD / Arrow Keys Graph Navigation Loop (60fps animation) ──
   useEffect(() => {
+    const keysPressed = new Set<string>();
+    let animationFrameId: number | null = null;
+    let lastTime = 0;
+
+    const updatePan = (currentTime: number) => {
+      if (keysPressed.size === 0) {
+        animationFrameId = null;
+        lastTime = 0;
+        return;
+      }
+
+      if (lastTime === 0) {
+        lastTime = currentTime;
+      }
+      const delta = Math.min((currentTime - lastTime) / 1000, 0.1); // seconds elapsed, capped
+      lastTime = currentTime;
+
+      const isShift = keysPressed.has('shift');
+      // Standard speed: 650px/sec, Turbo speed with Shift: 1400px/sec
+      const speed = (isShift ? 1400 : 650) * delta;
+
+      let dx = 0;
+      let dy = 0;
+
+      if (keysPressed.has('w') || keysPressed.has('arrowup')) {
+        dy += speed;
+      }
+      if (keysPressed.has('s') || keysPressed.has('arrowdown')) {
+        dy -= speed;
+      }
+      if (keysPressed.has('a') || keysPressed.has('arrowleft')) {
+        dx += speed;
+      }
+      if (keysPressed.has('d') || keysPressed.has('arrowright')) {
+        dx -= speed;
+      }
+
+      if (dx !== 0 || dy !== 0) {
+        const vp = getViewport();
+        setViewport({
+          x: vp.x + dx,
+          y: vp.y + dy,
+          zoom: vp.zoom,
+        });
+      }
+
+      animationFrameId = requestAnimationFrame(updatePan);
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore keystrokes when typing inside form controls or editable areas
+      // Ignore keystrokes when typing inside inputs, textareas, or editable containers
       const target = e.target as HTMLElement | null;
       if (
         target &&
@@ -298,28 +347,48 @@ export function GraphCanvas({
         return;
       }
 
-      // Ignore if modifier keys like Ctrl/Meta/Alt are held (e.g. Ctrl+S, Ctrl+A)
       if (e.ctrlKey || e.metaKey || e.altKey) {
         return;
       }
 
       const key = e.key.toLowerCase();
-      const step = e.shiftKey ? 120 : 50;
-      const vp = getViewport();
+      const panKeys = ['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'shift'];
+      if (!panKeys.includes(key)) return;
 
-      if (key === 'w' || e.key === 'ArrowUp') {
-        setViewport({ ...vp, y: vp.y + step });
-      } else if (key === 's' || e.key === 'ArrowDown') {
-        setViewport({ ...vp, y: vp.y - step });
-      } else if (key === 'a' || e.key === 'ArrowLeft') {
-        setViewport({ ...vp, x: vp.x + step });
-      } else if (key === 'd' || e.key === 'ArrowRight') {
-        setViewport({ ...vp, x: vp.x - step });
+      keysPressed.add(key);
+
+      if (!animationFrameId) {
+        lastTime = 0;
+        animationFrameId = requestAnimationFrame(updatePan);
       }
     };
 
+    const handleKeyUp = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase();
+      keysPressed.delete(key);
+    };
+
+    const handleBlur = () => {
+      keysPressed.clear();
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+      }
+      lastTime = 0;
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
   }, [getViewport, setViewport]);
 
   // ── Stable references to all nodes/edges from storage (complete graph) ──
