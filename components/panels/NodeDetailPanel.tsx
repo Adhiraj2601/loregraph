@@ -261,14 +261,15 @@ export function NodeDetailPanel({
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  // Determine if this idea already has attached visual media (sketch or image)
+  // Determine media presence
   const hasSketch = Boolean(node.strokes && node.strokes.length > 0);
   const hasImage = Boolean(node.imageUrl || editImageUrl);
-  const isMediaNodeType = node.type === 'SKETCH' || node.type === 'IMAGE' || editType === 'SKETCH' || editType === 'IMAGE';
-  const hasMedia = hasSketch || hasImage || isMediaNodeType;
+  const isImageNode = node.type === 'IMAGE' || editType === 'IMAGE';
+  const isSketchNode = node.type === 'SKETCH' || editType === 'SKETCH';
 
-  // Media section collapsed by default if empty; automatically expanded if media exists
-  const [isMediaExpanded, setIsMediaExpanded] = useState<boolean>(hasMedia);
+  // Independent accordion states for Image vs Sketchpad
+  const [isImageOpen, setIsImageOpen] = useState<boolean>(hasImage || isImageNode);
+  const [isSketchOpen, setIsSketchOpen] = useState<boolean>(hasSketch || isSketchNode);
 
   // Connect Idea inline state
   const [isConnecting, setIsConnecting] = useState(false);
@@ -299,8 +300,12 @@ export function NodeDetailPanel({
     setIsConnecting(false);
     setTargetNodeId(availableCandidates[0]?.id || '');
     setRelationshipText('');
-    const curHasMedia = Boolean((node.strokes && node.strokes.length > 0) || node.imageUrl || node.type === 'SKETCH' || node.type === 'IMAGE');
-    setIsMediaExpanded(curHasMedia);
+    
+    // Automatically open sections only if they contain data
+    const curHasImg = Boolean(node.imageUrl || node.type === 'IMAGE');
+    const curHasSk = Boolean((node.strokes && node.strokes.length > 0) || node.type === 'SKETCH');
+    setIsImageOpen(curHasImg);
+    setIsSketchOpen(curHasSk);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [node.id, node.title, node.description, node.type, node.imageUrl, node.strokes]);
 
@@ -310,7 +315,7 @@ export function NodeDetailPanel({
     try {
       const url = await uploadEntityImage(node.ideaId, file, node.id);
       setEditImageUrl(url);
-      setIsMediaExpanded(true);
+      setIsImageOpen(true);
       if (!isEditing) {
         onUpdate(node.id, { imageUrl: url });
       }
@@ -387,7 +392,7 @@ export function NodeDetailPanel({
       </div>
 
       {/* Main Manuscript Body */}
-      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
         {/* Title */}
         <div>
           {isEditing ? (
@@ -440,134 +445,167 @@ export function NodeDetailPanel({
           </div>
         )}
 
-        {/* ─── Collapsible Attached Artwork / Sketch Section ─── */}
+        {/* ─── 1. INDEPENDENT COLLAPSIBLE ATTACHED IMAGE SECTION ─── */}
         <div className="border rounded-lg overflow-hidden" style={{ borderColor: 'var(--border-light)' }}>
-          {/* Section Header / Expandable Toggle */}
           <button
             type="button"
-            onClick={() => setIsMediaExpanded(v => !v)}
+            onClick={() => setIsImageOpen(v => !v)}
             className="w-full px-3.5 py-2.5 flex items-center justify-between text-left transition-colors hover:bg-[#FAF8F4]"
             style={{ background: 'var(--surface)' }}
           >
             <div className="flex items-center gap-2">
               <span style={{ color: 'var(--text-tertiary)' }}>
-                {isMediaExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                {isImageOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
               </span>
               <span className="text-[10px] font-mono uppercase tracking-wider font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                Attached Artwork & Sketch
+                Attached Image
               </span>
             </div>
 
             <div className="flex items-center gap-2">
-              {hasSketch && (
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#ECE8DF]" style={{ color: 'var(--accent-rust)' }}>
-                  {node.strokes?.length} strokes
-                </span>
-              )}
-              {hasImage && (
+              {hasImage ? (
                 <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#ECE8DF]" style={{ color: '#4A6B82' }}>
-                  Image
+                  Image attached
                 </span>
-              )}
-              {!hasMedia && !isMediaExpanded && (
-                <span className="text-[11px] font-mono" style={{ color: 'var(--accent-rust)' }}>
-                  + Add
-                </span>
+              ) : (
+                !isImageOpen && (
+                  <span className="text-[11px] font-mono" style={{ color: 'var(--accent-rust)' }}>
+                    + Add Image
+                  </span>
+                )
               )}
             </div>
           </button>
 
-          {/* Expanded Content Area */}
-          {isMediaExpanded && (
-            <div className="p-3.5 space-y-4 border-t bg-[#FAF8F4]/30" style={{ borderColor: 'var(--border-light)' }}>
-              {/* Image Upload Area */}
-              <div>
-                <input
-                  ref={imageInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={e => {
-                    const file = e.target.files?.[0];
-                    if (file) handleImageFile(file);
-                  }}
-                />
+          {isImageOpen && (
+            <div className="p-3.5 space-y-3 border-t bg-[#FAF8F4]/30" style={{ borderColor: 'var(--border-light)' }}>
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) handleImageFile(file);
+                }}
+              />
 
-                {editImageUrl ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1">
-                        <ImageIcon size={11} />
-                        <span>Entity Image</span>
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setIsLightboxOpen(true)}
-                          className="text-[10px] font-mono text-[#4A6B82] hover:underline flex items-center gap-1"
-                        >
-                          <Maximize2 size={10} />
-                          <span>View full</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditImageUrl(undefined);
-                            onUpdate(node.id, { imageUrl: undefined });
-                          }}
-                          className="text-[10px] font-mono text-red-600 hover:underline"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    </div>
-
-                    <div
-                      className="relative rounded-lg overflow-hidden border group bg-[#FAF8F4]"
-                      style={{ borderColor: 'var(--border)' }}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={editImageUrl}
-                        alt={node.title}
-                        className="w-full h-40 object-cover cursor-pointer group-hover:brightness-95 transition-all"
+              {editImageUrl ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1">
+                      <ImageIcon size={11} />
+                      <span>Full Preview</span>
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
                         onClick={() => setIsLightboxOpen(true)}
-                      />
+                        className="text-[10px] font-mono text-[#4A6B82] hover:underline flex items-center gap-1"
+                      >
+                        <Maximize2 size={10} />
+                        <span>View full</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditImageUrl(undefined);
+                          onUpdate(node.id, { imageUrl: undefined });
+                        }}
+                        className="text-[10px] font-mono text-red-600 hover:underline"
+                      >
+                        Remove
+                      </button>
                     </div>
                   </div>
-                ) : (
+
+                  {/* Fully displayed uncropped image preview */}
+                  <div
+                    className="relative rounded-lg overflow-hidden border group bg-[#FAF8F4] flex items-center justify-center p-1.5"
+                    style={{ borderColor: 'var(--border)' }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={editImageUrl}
+                      alt={node.title}
+                      className="w-full max-h-[320px] object-contain cursor-pointer group-hover:brightness-95 transition-all"
+                      onClick={() => setIsLightboxOpen(true)}
+                    />
+                  </div>
+
                   <button
                     type="button"
                     onClick={() => imageInputRef.current?.click()}
-                    className="w-full py-2.5 px-3 rounded border border-dashed border-[var(--border)] hover:border-[#4A6B82] flex items-center justify-center gap-2 text-xs font-mono transition-colors bg-[var(--surface)] hover:bg-[#ECE8DF]"
-                    style={{ color: 'var(--text-secondary)' }}
+                    className="w-full py-1.5 px-3 rounded border border-[var(--border)] hover:bg-[#ECE8DF] text-[11px] font-mono text-[var(--text-secondary)] flex items-center justify-center gap-1.5 transition-colors"
                   >
-                    {isUploadingImage ? (
-                      <>
-                        <Loader2 size={13} className="animate-spin text-[#8A4938]" />
-                        <span>Uploading image...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Upload size={13} className="text-[#4A6B82]" />
-                        <span>Upload reference image</span>
-                      </>
-                    )}
+                    <Upload size={12} />
+                    <span>Replace Image</span>
                   </button>
-                )}
-              </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => imageInputRef.current?.click()}
+                  className="w-full py-4 px-3 rounded border border-dashed border-[var(--border)] hover:border-[#4A6B82] flex flex-col items-center justify-center gap-1 text-xs font-mono transition-colors bg-[var(--surface)] hover:bg-[#ECE8DF]"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  {isUploadingImage ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 size={14} className="animate-spin text-[#8A4938]" />
+                      <span>Uploading image...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload size={15} className="text-[#4A6B82] mb-0.5" />
+                      <span>Click to upload image</span>
+                      <span className="text-[9px] font-mono text-[var(--text-tertiary)]">PNG, JPG, WebP, SVG</span>
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
 
-              {/* Sketchpad Area */}
-              <div>
-                <span className="block text-[10px] font-mono uppercase tracking-wider mb-1.5 text-[var(--text-tertiary)]">
-                  Freehand Sketchpad
+        {/* ─── 2. INDEPENDENT COLLAPSIBLE FREEHAND SKETCH SECTION ─── */}
+        <div className="border rounded-lg overflow-hidden" style={{ borderColor: 'var(--border-light)' }}>
+          <button
+            type="button"
+            onClick={() => setIsSketchOpen(v => !v)}
+            className="w-full px-3.5 py-2.5 flex items-center justify-between text-left transition-colors hover:bg-[#FAF8F4]"
+            style={{ background: 'var(--surface)' }}
+          >
+            <div className="flex items-center gap-2">
+              <span style={{ color: 'var(--text-tertiary)' }}>
+                {isSketchOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              </span>
+              <span className="text-[10px] font-mono uppercase tracking-wider font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                Freehand Sketch
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {hasSketch ? (
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#ECE8DF]" style={{ color: 'var(--accent-rust)' }}>
+                  {node.strokes?.length} strokes
                 </span>
-                <NodeSketchpad
-                  nodeId={node.id}
-                  strokes={node.strokes || []}
-                  onChangeStrokes={handleStrokesUpdate}
-                />
-              </div>
+              ) : (
+                !isSketchOpen && (
+                  <span className="text-[11px] font-mono" style={{ color: 'var(--accent-rust)' }}>
+                    + Draw Sketch
+                  </span>
+                )
+              )}
+            </div>
+          </button>
+
+          {isSketchOpen && (
+            <div className="p-3.5 space-y-2 border-t bg-[#FAF8F4]/30" style={{ borderColor: 'var(--border-light)' }}>
+              <NodeSketchpad
+                nodeId={node.id}
+                strokes={node.strokes || []}
+                onChangeStrokes={handleStrokesUpdate}
+              />
             </div>
           )}
         </div>

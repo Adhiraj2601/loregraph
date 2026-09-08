@@ -304,7 +304,7 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
             boxShadow: selected
               ? '0 0 0 2.5px rgba(138, 73, 56, 0.15), 0 3px 10px rgba(0,0,0,0.06)'
               : '0 1px 4px rgba(0,0,0,0.04)',
-            width: '185px',
+            width: '210px',
           }}
         >
           {/* Card Header */}
@@ -329,9 +329,9 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
             </div>
           </div>
 
-          {/* Image Frame */}
+          {/* Image Frame - Displays Full Uncropped Image */}
           <div
-            className="w-full h-[105px] rounded overflow-hidden border flex items-center justify-center relative bg-[#FAF8F4] group-hover:brightness-95 transition-all"
+            className="w-full min-h-[110px] max-h-[220px] rounded overflow-hidden border flex items-center justify-center relative bg-[#FAF8F4] group-hover:brightness-95 transition-all p-1"
             style={{ borderColor: 'var(--border-light)' }}
           >
             {nodeData.imageUrl ? (
@@ -339,7 +339,7 @@ const LoreGraphNode = memo(function LoreGraphNode({ data, selected }: NodeProps)
               <img
                 src={nodeData.imageUrl}
                 alt={nodeData.title}
-                className="w-full h-full object-cover select-none pointer-events-none transition-transform duration-300 group-hover:scale-105"
+                className="w-full max-h-[200px] object-contain select-none pointer-events-none transition-transform duration-300 group-hover:scale-105"
                 loading="lazy"
               />
             ) : (
