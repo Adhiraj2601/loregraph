@@ -1,16 +1,14 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Edit3, Trash2, Focus, Plus, Check, PenTool, Highlighter, Eraser, RotateCcw, Clock, Image as ImageIcon, Upload, Loader2, Maximize2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Edit3, Trash2, Focus, Plus, Check, PenTool, Highlighter, Eraser, RotateCcw, Image as ImageIcon, Upload, Loader2, Maximize2, ChevronDown, ChevronRight } from 'lucide-react';
 import { getStroke } from 'perfect-freehand';
 import { LoreNode } from '@/types/node';
 import { LoreEdge } from '@/types/edge';
 import { DrawingStroke, DrawingTool } from '@/types/drawing';
-import { Era } from '@/types/era';
 import { NODE_TYPE_CONFIG, NODE_TYPES_LIST } from '@/lib/nodeTypes';
 import { formatDate, formatRelativeTime, generateId } from '@/lib/utils';
-import { edgeRepo, eraRepo } from '@/lib/storage/repository';
+import { edgeRepo } from '@/lib/storage/repository';
 import { getSvgPathFromStroke } from '@/components/graph/DrawingCanvas';
 import { uploadEntityImage } from '@/lib/imageStorage';
 
@@ -189,7 +187,7 @@ function NodeSketchpad({
       {/* Drawing Canvas Area */}
       <svg
         ref={svgRef}
-        className="w-full h-52 cursor-crosshair touch-none select-none"
+        className="w-full h-44 cursor-crosshair touch-none select-none"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -252,7 +250,6 @@ export function NodeDetailPanel({
   onDelete,
   onUpdate,
   onFocus,
-  isMobile,
 }: NodeDetailPanelProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(node.title);
@@ -262,14 +259,16 @@ export function NodeDetailPanel({
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const [editTagInput, setEditTagInput] = useState('');
-  const [editTags, setEditTags] = useState<string[]>(node.tags ?? []);
-  const [editYear, setEditYear] = useState<string>(node.year !== undefined ? String(node.year) : '');
-  const [editEndYear, setEditEndYear] = useState<string>(node.endYear !== undefined ? String(node.endYear) : '');
-  const [editDateLabel, setEditDateLabel] = useState<string>(node.dateLabel || '');
-  const [editEraId, setEditEraId] = useState<string>(node.eraId || '');
-  const [worldEras, setWorldEras] = useState<Era[]>([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // Determine if this idea already has attached visual media (sketch or image)
+  const hasSketch = Boolean(node.strokes && node.strokes.length > 0);
+  const hasImage = Boolean(node.imageUrl || editImageUrl);
+  const isMediaNodeType = node.type === 'SKETCH' || node.type === 'IMAGE' || editType === 'SKETCH' || editType === 'IMAGE';
+  const hasMedia = hasSketch || hasImage || isMediaNodeType;
+
+  // Media section collapsed by default if empty; automatically expanded if media exists
+  const [isMediaExpanded, setIsMediaExpanded] = useState<boolean>(hasMedia);
 
   // Connect Idea inline state
   const [isConnecting, setIsConnecting] = useState(false);
@@ -295,19 +294,15 @@ export function NodeDetailPanel({
     setEditDesc(node.description);
     setEditType(node.type);
     setEditImageUrl(node.imageUrl);
-    setEditTags(node.tags ?? []);
-    setEditYear(node.year !== undefined ? String(node.year) : '');
-    setEditEndYear(node.endYear !== undefined ? String(node.endYear) : '');
-    setEditDateLabel(node.dateLabel || '');
-    setEditEraId(node.eraId || '');
-    setWorldEras(eraRepo.getAllByIdeaId(node.ideaId));
     setIsEditing(false);
     setConfirmDelete(false);
     setIsConnecting(false);
     setTargetNodeId(availableCandidates[0]?.id || '');
     setRelationshipText('');
+    const curHasMedia = Boolean((node.strokes && node.strokes.length > 0) || node.imageUrl || node.type === 'SKETCH' || node.type === 'IMAGE');
+    setIsMediaExpanded(curHasMedia);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [node.id, node.title, node.description, node.type, node.imageUrl, node.tags, node.year, node.endYear, node.dateLabel, node.eraId]);
+  }, [node.id, node.title, node.description, node.type, node.imageUrl, node.strokes]);
 
   const handleImageFile = async (file: File) => {
     if (!file.type.startsWith('image/')) return;
@@ -315,6 +310,7 @@ export function NodeDetailPanel({
     try {
       const url = await uploadEntityImage(node.ideaId, file, node.id);
       setEditImageUrl(url);
+      setIsMediaExpanded(true);
       if (!isEditing) {
         onUpdate(node.id, { imageUrl: url });
       }
@@ -330,29 +326,9 @@ export function NodeDetailPanel({
       title: editTitle.trim() || node.title,
       description: editDesc.trim(),
       type: editType,
-      tags: editTags,
       imageUrl: editImageUrl,
-      year: editYear !== '' ? parseInt(editYear) : undefined,
-      endYear: editEndYear !== '' ? parseInt(editEndYear) : undefined,
-      dateLabel: editDateLabel.trim() || undefined,
-      eraId: editEraId || undefined,
     });
     setIsEditing(false);
-  };
-
-  const handleAddTag = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      const val = editTagInput.trim().replace(/^#/, '');
-      if (val && !editTags.includes(val)) {
-        setEditTags(prev => [...prev, val]);
-        setEditTagInput('');
-      }
-    }
-  };
-
-  const handleRemoveTag = (tag: string) => {
-    setEditTags(prev => prev.filter(t => t !== tag));
   };
 
   const handleCreateConnection = () => {
@@ -361,7 +337,7 @@ export function NodeDetailPanel({
       ideaId: node.ideaId,
       source: node.id,
       target: targetNodeId,
-      relationship: relationshipText.trim() || 'connected to',
+      relationship: relationshipText.trim() || '',
     });
     setIsConnecting(false);
     setRelationshipText('');
@@ -464,240 +440,134 @@ export function NodeDetailPanel({
           </div>
         )}
 
-        {/* Attached / Entity Image Section */}
-        {(node.type === 'IMAGE' || editType === 'IMAGE' || editImageUrl || isEditing) && (
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-mono uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--text-tertiary)' }}>
-                <ImageIcon size={11} />
-                <span>{node.type === 'IMAGE' || editType === 'IMAGE' ? 'Image Artwork' : 'Attached Image'}</span>
+        {/* ─── Collapsible Attached Artwork / Sketch Section ─── */}
+        <div className="border rounded-lg overflow-hidden" style={{ borderColor: 'var(--border-light)' }}>
+          {/* Section Header / Expandable Toggle */}
+          <button
+            type="button"
+            onClick={() => setIsMediaExpanded(v => !v)}
+            className="w-full px-3.5 py-2.5 flex items-center justify-between text-left transition-colors hover:bg-[#FAF8F4]"
+            style={{ background: 'var(--surface)' }}
+          >
+            <div className="flex items-center gap-2">
+              <span style={{ color: 'var(--text-tertiary)' }}>
+                {isMediaExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
               </span>
-              {editImageUrl && (
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsLightboxOpen(true)}
-                    className="text-[10px] font-mono text-[#4A6B82] hover:underline flex items-center gap-1"
-                  >
-                    <Maximize2 size={10} />
-                    <span>View full</span>
-                  </button>
-                  {isEditing && (
-                    <button
-                      type="button"
-                      onClick={() => setEditImageUrl(undefined)}
-                      className="text-[10px] font-mono text-red-600 hover:underline"
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-              )}
+              <span className="text-[10px] font-mono uppercase tracking-wider font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                Attached Artwork & Sketch
+              </span>
             </div>
 
-            <input
-              ref={imageInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={e => {
-                const file = e.target.files?.[0];
-                if (file) handleImageFile(file);
-              }}
-            />
+            <div className="flex items-center gap-2">
+              {hasSketch && (
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#ECE8DF]" style={{ color: 'var(--accent-rust)' }}>
+                  {node.strokes?.length} strokes
+                </span>
+              )}
+              {hasImage && (
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#ECE8DF]" style={{ color: '#4A6B82' }}>
+                  Image
+                </span>
+              )}
+              {!hasMedia && !isMediaExpanded && (
+                <span className="text-[11px] font-mono" style={{ color: 'var(--accent-rust)' }}>
+                  + Add
+                </span>
+              )}
+            </div>
+          </button>
 
-            {editImageUrl ? (
-              <div
-                className="relative rounded-lg overflow-hidden border group bg-[#FAF8F4]"
-                style={{ borderColor: 'var(--border)' }}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={editImageUrl}
-                  alt={node.title}
-                  className="w-full h-44 object-cover cursor-pointer group-hover:brightness-95 transition-all"
-                  onClick={() => setIsLightboxOpen(true)}
+          {/* Expanded Content Area */}
+          {isMediaExpanded && (
+            <div className="p-3.5 space-y-4 border-t bg-[#FAF8F4]/30" style={{ borderColor: 'var(--border-light)' }}>
+              {/* Image Upload Area */}
+              <div>
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) handleImageFile(file);
+                  }}
                 />
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 pointer-events-none">
-                  <span className="text-white text-xs font-mono flex items-center gap-1 bg-black/60 px-2 py-1 rounded">
-                    <Maximize2 size={12} />
-                    Click to view full
-                  </span>
-                </div>
-                {isEditing && (
+
+                {editImageUrl ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1">
+                        <ImageIcon size={11} />
+                        <span>Entity Image</span>
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsLightboxOpen(true)}
+                          className="text-[10px] font-mono text-[#4A6B82] hover:underline flex items-center gap-1"
+                        >
+                          <Maximize2 size={10} />
+                          <span>View full</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditImageUrl(undefined);
+                            onUpdate(node.id, { imageUrl: undefined });
+                          }}
+                          className="text-[10px] font-mono text-red-600 hover:underline"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+
+                    <div
+                      className="relative rounded-lg overflow-hidden border group bg-[#FAF8F4]"
+                      style={{ borderColor: 'var(--border)' }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={editImageUrl}
+                        alt={node.title}
+                        className="w-full h-40 object-cover cursor-pointer group-hover:brightness-95 transition-all"
+                        onClick={() => setIsLightboxOpen(true)}
+                      />
+                    </div>
+                  </div>
+                ) : (
                   <button
                     type="button"
                     onClick={() => imageInputRef.current?.click()}
-                    className="absolute bottom-2 right-2 px-2.5 py-1 rounded text-xs font-mono bg-black/75 hover:bg-black text-white flex items-center gap-1.5 backdrop-blur-sm transition-all shadow-md z-10"
+                    className="w-full py-2.5 px-3 rounded border border-dashed border-[var(--border)] hover:border-[#4A6B82] flex items-center justify-center gap-2 text-xs font-mono transition-colors bg-[var(--surface)] hover:bg-[#ECE8DF]"
+                    style={{ color: 'var(--text-secondary)' }}
                   >
-                    <Upload size={11} />
-                    <span>Replace</span>
+                    {isUploadingImage ? (
+                      <>
+                        <Loader2 size={13} className="animate-spin text-[#8A4938]" />
+                        <span>Uploading image...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload size={13} className="text-[#4A6B82]" />
+                        <span>Upload reference image</span>
+                      </>
+                    )}
                   </button>
                 )}
               </div>
-            ) : (
-              <div
-                onClick={() => imageInputRef.current?.click()}
-                className="w-full py-5 px-4 rounded-lg border-2 border-dashed border-[var(--border)] hover:border-[#4A6B82] flex flex-col items-center justify-center cursor-pointer transition-colors bg-[#FAF8F4]/50 hover:bg-[#ECE8DF]"
-              >
-                {isUploadingImage ? (
-                  <div className="flex items-center gap-2 text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>
-                    <Loader2 size={15} className="animate-spin text-[#8A4938]" />
-                    <span>Uploading image...</span>
-                  </div>
-                ) : (
-                  <>
-                    <ImageIcon size={22} className="mb-1.5 text-[#4A6B82]" />
-                    <p className="text-xs font-serif" style={{ color: 'var(--text-primary)' }}>
-                      Click to upload image for this entity
-                    </p>
-                    <p className="text-[10px] font-mono mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
-                      PNG, JPG, WebP, SVG, GIF
-                    </p>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        )}
 
-        {/* Embedded Artwork / Sketchpad */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-              {node.type === 'SKETCH' ? 'Artwork & Diagram' : 'Attached Sketch'}
-            </span>
-            <span className="text-[10px] font-mono" style={{ color: 'var(--accent-rust)' }}>
-              {node.strokes && node.strokes.length > 0 ? `${node.strokes.length} strokes` : 'Draw below'}
-            </span>
-          </div>
-
-          <NodeSketchpad
-            nodeId={node.id}
-            strokes={node.strokes || []}
-            onChangeStrokes={handleStrokesUpdate}
-          />
-        </div>
-
-        {/* Era & Chronology */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-mono uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--text-tertiary)' }}>
-              <Clock size={11} />
-              <span>Era & Chronology</span>
-            </span>
-          </div>
-
-          {isEditing ? (
-            <div className="p-3 rounded border space-y-3 bg-[var(--surface)]" style={{ borderColor: 'var(--border-light)' }}>
-              {/* Year inputs */}
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-[9px] font-mono uppercase mb-1" style={{ color: 'var(--text-secondary)' }}>
-                    Year (Timeline Position)
-                  </label>
-                  <input
-                    type="number"
-                    value={editYear}
-                    onChange={e => setEditYear(e.target.value)}
-                    placeholder="e.g. 1450"
-                    className="w-full px-2.5 py-1.5 text-xs font-mono rounded border bg-transparent focus:outline-none focus:border-[#8A4938]"
-                    style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                  />
-                </div>
-                <div>
-                  <label className="block text-[9px] font-mono uppercase mb-1" style={{ color: 'var(--text-secondary)' }}>
-                    End Year (Optional)
-                  </label>
-                  <input
-                    type="number"
-                    value={editEndYear}
-                    onChange={e => setEditEndYear(e.target.value)}
-                    placeholder="e.g. 1475"
-                    className="w-full px-2.5 py-1.5 text-xs font-mono rounded border bg-transparent focus:outline-none focus:border-[#8A4938]"
-                    style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                  />
-                </div>
-              </div>
-
-              {/* Date Label */}
+              {/* Sketchpad Area */}
               <div>
-                <label className="block text-[9px] font-mono uppercase mb-1" style={{ color: 'var(--text-secondary)' }}>
-                  Custom Date Label (Display Text)
-                </label>
-                <input
-                  type="text"
-                  value={editDateLabel}
-                  onChange={e => setEditDateLabel(e.target.value)}
-                  placeholder="e.g. 1450 AC, Autumn Year 42"
-                  className="w-full px-2.5 py-1.5 text-xs font-serif rounded border bg-transparent focus:outline-none focus:border-[#8A4938]"
-                  style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                <span className="block text-[10px] font-mono uppercase tracking-wider mb-1.5 text-[var(--text-tertiary)]">
+                  Freehand Sketchpad
+                </span>
+                <NodeSketchpad
+                  nodeId={node.id}
+                  strokes={node.strokes || []}
+                  onChangeStrokes={handleStrokesUpdate}
                 />
               </div>
-
-              {/* Linked Epoch */}
-              {worldEras.length > 0 && (
-                <div>
-                  <label className="block text-[9px] font-mono uppercase mb-1" style={{ color: 'var(--text-secondary)' }}>
-                    Historical Epoch / Era
-                  </label>
-                  <select
-                    value={editEraId}
-                    onChange={e => setEditEraId(e.target.value)}
-                    className="w-full px-2 py-1.5 text-xs font-serif rounded border bg-[var(--surface)] focus:outline-none focus:border-[#8A4938]"
-                    style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                  >
-                    <option value="">(No specific epoch)</option>
-                    {worldEras.map(era => (
-                      <option key={era.id} value={era.id}>
-                        {era.name} ({era.startYear} – {era.endYear})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div>
-              {node.year !== undefined || node.dateLabel || node.eraId ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  {(node.dateLabel || node.year !== undefined) && (
-                    <span
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono border"
-                      style={{ borderColor: 'var(--accent-rust)', background: 'rgba(138, 73, 56, 0.08)', color: 'var(--accent-rust)' }}
-                    >
-                      <Clock size={12} />
-                      <span>{node.dateLabel || (node.endYear ? `${node.year} – ${node.endYear}` : `Year ${node.year}`)}</span>
-                    </span>
-                  )}
-
-                  {node.eraId && (() => {
-                    const matchedEra = worldEras.find(e => e.id === node.eraId);
-                    if (!matchedEra) return null;
-                    return (
-                      <span
-                        key={matchedEra.id}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-serif border"
-                        style={{
-                          borderColor: matchedEra.color,
-                          background: `${matchedEra.color}15`,
-                          color: matchedEra.color,
-                        }}
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: matchedEra.color }} />
-                        <span>{matchedEra.name}</span>
-                      </span>
-                    );
-                  })()}
-                </div>
-              ) : (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="text-xs font-serif italic hover:underline flex items-center gap-1 text-[#73716B]"
-                >
-                  <span>+ Set timeline date & epoch</span>
-                </button>
-              )}
             </div>
           )}
         </div>
@@ -724,7 +594,7 @@ export function NodeDetailPanel({
             <textarea
               value={editDesc}
               onChange={e => setEditDesc(e.target.value)}
-              rows={5}
+              rows={6}
               className="w-full p-3 text-xs font-serif leading-relaxed bg-transparent border rounded focus:outline-none focus:border-[#8A4938] resize-none"
               style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
               placeholder="Record details, history, capabilities, or secrets..."
@@ -736,52 +606,6 @@ export function NodeDetailPanel({
             >
               {node.description || 'No description recorded yet for this idea.'}
             </p>
-          )}
-        </div>
-
-        {/* Tags */}
-        <div>
-          <span className="block text-[10px] font-mono uppercase tracking-wider mb-2" style={{ color: 'var(--text-tertiary)' }}>
-            Tags
-          </span>
-          {isEditing ? (
-            <div className="space-y-2">
-              <input
-                type="text"
-                value={editTagInput}
-                onChange={e => setEditTagInput(e.target.value)}
-                onKeyDown={handleAddTag}
-                placeholder="Type tag and press Enter..."
-                className="w-full px-2.5 py-1.5 text-xs font-mono bg-transparent border rounded focus:outline-none focus:border-[#8A4938]"
-                style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-              />
-              <div className="flex flex-wrap gap-1">
-                {editTags.map(t => (
-                  <span
-                    key={t}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono bg-[#ECE8DF]"
-                    style={{ color: 'var(--text-secondary)' }}
-                  >
-                    <span>#{t}</span>
-                    <button onClick={() => handleRemoveTag(t)} className="hover:text-red-500">×</button>
-                  </span>
-                ))}
-              </div>
-            </div>
-          ) : node.tags && node.tags.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5">
-              {node.tags.map(t => (
-                <span
-                  key={t}
-                  className="px-2 py-0.5 rounded text-[11px] font-mono"
-                  style={{ background: 'var(--surface)', border: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}
-                >
-                  #{t}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs font-serif italic" style={{ color: 'var(--text-tertiary)' }}>No tags</p>
           )}
         </div>
 
