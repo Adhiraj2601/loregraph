@@ -49,11 +49,18 @@ function LoreEdgeComponent({
   id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, selected, markerEnd,
 }: EdgeProps) {
   const [edgePath, labelX, labelY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
-  const rawRelationship = (data as { relationship?: string })?.relationship;
+  const edgeData = data as {
+    relationship?: string;
+    edgeColor?: string;
+    onUpdateRelationship?: (id: string, rel: string) => void;
+    onDeleteEdge?: (id: string) => void;
+  };
+  const rawRelationship = edgeData?.relationship;
   // Blank by default — only show label if a custom relationship was actually set
   const label = rawRelationship && rawRelationship !== 'connected to' ? rawRelationship : '';
-  const onUpdateRelationship = (data as { onUpdateRelationship?: (id: string, rel: string) => void })?.onUpdateRelationship;
-  const onDeleteEdge = (data as { onDeleteEdge?: (id: string) => void })?.onDeleteEdge;
+  const onUpdateRelationship = edgeData?.onUpdateRelationship;
+  const onDeleteEdge = edgeData?.onDeleteEdge;
+  const edgeColor = edgeData?.edgeColor || '#8A4938';
 
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(label);
@@ -74,13 +81,35 @@ function LoreEdgeComponent({
 
   return (
     <>
+      {/* 1. Underlying contrast dark halo for 100% visibility on all backgrounds */}
+      <path
+        d={edgePath}
+        fill="none"
+        stroke={selected || isEditing ? 'rgba(0, 0, 0, 0.75)' : 'rgba(18, 14, 12, 0.6)'}
+        strokeWidth={selected || isEditing ? 5.5 : 3.75}
+        strokeLinecap="round"
+        className="pointer-events-none transition-all duration-200"
+      />
+
+      {/* 2. Secondary soft luminous aura for extra pop on dark/scenic wallpapers */}
+      <path
+        d={edgePath}
+        fill="none"
+        stroke="rgba(255, 255, 255, 0.3)"
+        strokeWidth={selected || isEditing ? 3.5 : 2.5}
+        strokeLinecap="round"
+        className="pointer-events-none"
+      />
+
+      {/* 3. Core Vibrant Relation Stroke */}
       <BaseEdge
         id={id}
         path={edgePath}
         style={{
-          stroke: selected || isEditing ? '#8A4938' : '#B8B3A8',
-          strokeWidth: selected || isEditing ? 1.75 : 1,
-          opacity: selected || isEditing ? 1 : 0.75,
+          stroke: selected || isEditing ? '#D95338' : edgeColor,
+          strokeWidth: selected || isEditing ? 2.25 : 1.75,
+          opacity: 1,
+          filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.35))',
         }}
         markerEnd={markerEnd}
       />
@@ -93,11 +122,12 @@ function LoreEdgeComponent({
               pointerEvents: 'all',
               fontSize: '10px',
               fontFamily: 'JetBrains Mono, monospace',
-              background: 'rgba(252, 250, 247, 0.98)',
+              background: 'rgba(252, 250, 247, 0.95)',
+              backdropFilter: 'blur(4px)',
               padding: '2px 7px',
               borderRadius: '4px',
-              border: `1px solid ${selected || isEditing ? '#8A4938' : 'var(--border)'}`,
-              boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+              border: `1px solid ${selected || isEditing ? '#8A4938' : 'rgba(138, 73, 56, 0.45)'}`,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
               zIndex: 10,
             }}
             className="nodrag nopan group flex items-center gap-1.5 cursor-pointer transition-all hover:border-[#8A4938] hover:shadow-md"
@@ -123,8 +153,8 @@ function LoreEdgeComponent({
                     e.stopPropagation();
                     setIsEditing(true);
                   }}
-                  className="hover:text-[#8A4938] transition-colors select-none"
-                  style={{ color: selected ? '#8A4938' : '#73716B' }}
+                  className="hover:text-[#8A4938] transition-colors select-none font-medium text-gray-800"
+                  style={{ color: selected ? '#8A4938' : '#635F57' }}
                   title="Click to rename relationship"
                 >
                   {label}
@@ -208,6 +238,7 @@ function toFlowEdges(
   hiddenNodeIds: Set<string>,
   onUpdateRelationship?: (id: string, rel: string) => void,
   onDeleteEdge?: (id: string) => void,
+  edgeColor?: string,
 ): Edge[] {
   return loreEdges
     .filter(e => !hiddenNodeIds.has(e.source) && !hiddenNodeIds.has(e.target))
@@ -220,6 +251,7 @@ function toFlowEdges(
       type: 'loreEdge',
       data: {
         relationship: e.relationship && e.relationship !== 'connected to' ? e.relationship : '',
+        edgeColor: edgeColor || '#8A4938',
         onUpdateRelationship,
         onDeleteEdge,
       },
@@ -255,6 +287,7 @@ interface GraphCanvasProps {
   mapPixelate?: boolean;
   mapDimming?: number;
   mapFitMode?: 'contain' | 'cover';
+  edgeColor?: string;
   // Collapse feature
   collapsedNodeIds?: Set<string>;
   onToggleCollapse?: (nodeId: string) => void;
@@ -286,6 +319,7 @@ export function GraphCanvas({
   mapPixelate = false,
   mapDimming = 25,
   mapFitMode = 'cover',
+  edgeColor = '#8A4938',
   collapsedNodeIds,
   onToggleCollapse,
 }: GraphCanvasProps) {
@@ -474,11 +508,12 @@ export function GraphCanvas({
       hiddenNodeIds,
       handleUpdateRelationship,
       handleDeleteEdge,
+      edgeColor,
     );
 
     setNodes(flowNodes);
     setEdges(flowEdges);
-  }, [collapsedNodeIds, onToggleCollapse, selectedNodeId, isExploreMode, handleUpdateRelationship, handleDeleteEdge, setNodes, setEdges]);
+  }, [collapsedNodeIds, onToggleCollapse, selectedNodeId, isExploreMode, handleUpdateRelationship, handleDeleteEdge, edgeColor, setNodes, setEdges]);
 
   // Load data
   const loadGraph = useCallback(() => {
