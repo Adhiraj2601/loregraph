@@ -85,20 +85,19 @@ function LoreEdgeComponent({
   };
 
   const showBadge = Boolean(label || isEditing);
-
-  const strokeColor = selected || isEditing ? '#D95338' : edgeColor;
-  const strokeWidth = selected || isEditing ? 2.25 : 1.5;
+  const strokeColor = selected || isEditing ? '#D95338' : 'var(--lore-edge-stroke, #8A4938)';
+  const strokeWidth = selected || isEditing ? 2.5 : 1.75;
 
   return (
     <>
-      {/* Crisp notebook line with subtle shadow for legibility on all backgrounds */}
+      {/* Crisp notebook line with dynamic CSS variable stroke and subtle shadow */}
       <BaseEdge
         id={id}
         path={edgePath}
         style={{
           stroke: strokeColor,
           strokeWidth,
-          filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35))',
+          filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4))',
         }}
         markerEnd={markerEnd}
       />
@@ -526,11 +525,10 @@ export function GraphCanvas({
     loadGraph();
   }, [loadGraph, refreshKey]);
 
-  // Re-derive visible graph when collapse state or selection changes without full reload
+  // Re-derive visible graph when collapse state, selection, or edgeColor changes
   useEffect(() => {
     rebuildGraph();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [collapsedNodeIds, selectedNodeId]);
+  }, [collapsedNodeIds, selectedNodeId, edgeColor, rebuildGraph]);
 
   // Fit view on initial load
   useEffect(() => {
@@ -684,7 +682,10 @@ export function GraphCanvas({
         maxZoom={2.5}
         defaultEdgeOptions={{ type: 'loreEdge' }}
         proOptions={{ hideAttribution: true }}
-        style={{ background: 'var(--bg)' }}
+        style={{
+          background: 'var(--bg)',
+          ['--lore-edge-stroke' as any]: edgeColor || '#8A4938',
+        }}
       >
         <Background
           variant={BackgroundVariant.Dots}
