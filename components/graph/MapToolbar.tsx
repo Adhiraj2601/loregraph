@@ -32,7 +32,6 @@ interface MapToolbarProps {
   pixelate?: boolean;
   dimming?: number;
   fitMode?: 'contain' | 'cover';
-  edgeColor?: string;
   onUpload: (file: File) => void;
   onSelectPreset?: (preset: DefaultBackground) => void;
   onOpacityChange: (opacity: number) => void;
@@ -44,7 +43,6 @@ interface MapToolbarProps {
   onTogglePixelate?: () => void;
   onDimmingChange?: (dimming: number) => void;
   onToggleFitMode?: () => void;
-  onEdgeColorChange?: (color: string) => void;
   onReset: () => void;
   onRemove: () => void;
 }
@@ -61,7 +59,6 @@ export function MapToolbar({
   pixelate = false,
   dimming = 25,
   fitMode = 'cover',
-  edgeColor = '#8A4938',
   onUpload,
   onSelectPreset,
   onOpacityChange,
@@ -73,7 +70,6 @@ export function MapToolbar({
   onTogglePixelate,
   onDimmingChange,
   onToggleFitMode,
-  onEdgeColorChange,
   onReset,
   onRemove,
 }: MapToolbarProps) {
@@ -453,52 +449,6 @@ export function MapToolbar({
                   onChange={e => onOpacityChange(Number(e.target.value) / 100)}
                   className="w-full accent-[#8A4938] h-1.5"
                 />
-              </div>
-
-              {/* Relation Line Color & Contrast */}
-              <div className="space-y-1.5 pt-2 border-t" style={{ borderColor: 'var(--border-light)' }}>
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                    Relation Line Contrast
-                  </span>
-                  <span className="text-[10px] font-mono font-medium" style={{ color: edgeColor }}>
-                    {edgeColor === '#8A4938'
-                      ? 'Rust Ink'
-                      : edgeColor === '#D99B26'
-                      ? 'Amber Gold'
-                      : edgeColor === '#FFFFFF'
-                      ? 'Ivory Glow'
-                      : edgeColor === '#2BB6A3'
-                      ? 'Arcane Cyan'
-                      : 'Crimson'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5 pt-0.5">
-                  {[
-                    { label: 'Rust', color: '#8A4938' },
-                    { label: 'Gold', color: '#D99B26' },
-                    { label: 'Ivory', color: '#FFFFFF' },
-                    { label: 'Cyan', color: '#2BB6A3' },
-                    { label: 'Crimson', color: '#B83A2E' },
-                  ].map(c => (
-                    <button
-                      key={c.label}
-                      onClick={() => onEdgeColorChange?.(c.color)}
-                      className={`flex-1 py-1 px-1 rounded border flex items-center justify-center gap-1 transition-all ${
-                        edgeColor === c.color
-                          ? 'border-[#8A4938] bg-[#8A4938]/10 ring-1 ring-[#8A4938] font-semibold'
-                          : 'border-gray-200 hover:border-gray-400 bg-white/50'
-                      }`}
-                      title={`${c.label} Relation Line`}
-                    >
-                      <span
-                        className="w-2.5 h-2.5 rounded-full border border-black/20 shadow-sm flex-shrink-0"
-                        style={{ background: c.color }}
-                      />
-                      <span className="text-[9px] font-mono text-gray-700 truncate">{c.label}</span>
-                    </button>
-                  ))}
-                </div>
               </div>
 
               {/* Remove backdrop button */}

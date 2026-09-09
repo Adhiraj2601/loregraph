@@ -60,7 +60,6 @@ function GraphPageContent() {
   const [mapPixelate, setMapPixelate] = useState<boolean>(false);
   const [mapDimming, setMapDimming] = useState<number>(25);
   const [mapFitMode, setMapFitMode] = useState<'contain' | 'cover'>('cover');
-  const [edgeColor, setEdgeColor] = useState<string>('#8A4938');
 
   // Timeline / Epochs state
   const [eras, setEras] = useState<Era[]>([]);
@@ -114,7 +113,6 @@ function GraphPageContent() {
     setMapPixelate(mapSettings.pixelate ?? false);
     setMapDimming(mapSettings.dimming ?? 25);
     setMapFitMode(mapSettings.fitMode ?? 'cover');
-    setEdgeColor(mapSettings.edgeColor ?? '#8A4938');
 
     loadWorldMap(ideaId).then(url => {
       if (url) setMapUrl(url);
@@ -197,11 +195,6 @@ function GraphPageContent() {
     });
   }, [ideaId]);
 
-  const handleEdgeColorChange = useCallback((color: string) => {
-    setEdgeColor(color);
-    saveMapSettings(ideaId, { edgeColor: color });
-  }, [ideaId]);
-
   const handleSelectPresetBackground = useCallback(async (preset: DefaultBackground) => {
     setMapUrl(preset.url);
     setBackdropMode(preset.recommendedMode);
@@ -228,7 +221,6 @@ function GraphPageContent() {
     setMapPixelate(false);
     setMapDimming(25);
     setMapFitMode('cover');
-    setEdgeColor('#8A4938');
     setIsMapAdjusting(false);
     saveMapSettings(ideaId, {
       scale: 1,
@@ -239,7 +231,6 @@ function GraphPageContent() {
       pixelate: false,
       dimming: 25,
       fitMode: 'cover',
-      edgeColor: '#8A4938',
     });
   }, [ideaId]);
 
@@ -465,7 +456,6 @@ function GraphPageContent() {
                 mapPixelate={mapPixelate}
                 mapDimming={mapDimming}
                 mapFitMode={mapFitMode}
-                edgeColor={edgeColor}
                 collapsedNodeIds={collapsedNodeIds}
                 onToggleCollapse={handleToggleCollapse}
               />
@@ -527,7 +517,6 @@ function GraphPageContent() {
                   pixelate={mapPixelate}
                   dimming={mapDimming}
                   fitMode={mapFitMode}
-                  edgeColor={edgeColor}
                   onUpload={handleMapUpload}
                   onSelectPreset={handleSelectPresetBackground}
                   onOpacityChange={handleMapOpacityChange}
@@ -539,7 +528,6 @@ function GraphPageContent() {
                   onTogglePixelate={handleToggleMapPixelate}
                   onDimmingChange={handleMapDimmingChange}
                   onToggleFitMode={handleToggleMapFitMode}
-                  onEdgeColorChange={handleEdgeColorChange}
                   onReset={handleResetMap}
                   onRemove={handleMapRemove}
                 />

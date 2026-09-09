@@ -43,10 +43,6 @@ function debounce<T extends (...args: Parameters<T>) => void>(fn: T, delay: numb
   };
 }
 
-// ─── Edge Color Context ──────────────────────────────────────────────────────
-
-const EdgeColorContext = React.createContext<string>('#8A4938');
-
 // ─── Delicate Interactive Notebook Edge ──────────────────────────────────────
 
 function LoreEdgeComponent({
@@ -55,7 +51,6 @@ function LoreEdgeComponent({
   const [edgePath, labelX, labelY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
   const edgeData = data as {
     relationship?: string;
-    edgeColor?: string;
     onUpdateRelationship?: (id: string, rel: string) => void;
     onDeleteEdge?: (id: string) => void;
   };
@@ -64,10 +59,6 @@ function LoreEdgeComponent({
   const label = rawRelationship && rawRelationship !== 'connected to' ? rawRelationship : '';
   const onUpdateRelationship = edgeData?.onUpdateRelationship;
   const onDeleteEdge = edgeData?.onDeleteEdge;
-
-  // Live color from data or context
-  const contextColor = React.useContext(EdgeColorContext);
-  const edgeColor = edgeData?.edgeColor || contextColor || '#8A4938';
 
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(label);
@@ -85,19 +76,19 @@ function LoreEdgeComponent({
   };
 
   const showBadge = Boolean(label || isEditing);
-  const strokeColor = selected || isEditing ? '#D95338' : 'var(--lore-edge-stroke, #8A4938)';
-  const strokeWidth = selected || isEditing ? 2.5 : 1.75;
+  const strokeColor = selected || isEditing ? '#D95338' : '#8A4938';
+  const strokeWidth = selected || isEditing ? 2.25 : 1.5;
 
   return (
     <>
-      {/* Crisp notebook line with dynamic CSS variable stroke and subtle shadow */}
+      {/* Crisp notebook line with subtle shadow for separation */}
       <BaseEdge
         id={id}
         path={edgePath}
         style={{
           stroke: strokeColor,
           strokeWidth,
-          filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4))',
+          filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35))',
         }}
         markerEnd={markerEnd}
       />
@@ -237,7 +228,6 @@ function toFlowEdges(
   hiddenNodeIds: Set<string>,
   onUpdateRelationship?: (id: string, rel: string) => void,
   onDeleteEdge?: (id: string) => void,
-  edgeColor?: string,
 ): Edge[] {
   return loreEdges
     .filter(e => !hiddenNodeIds.has(e.source) && !hiddenNodeIds.has(e.target))
@@ -250,7 +240,6 @@ function toFlowEdges(
       type: 'loreEdge',
       data: {
         relationship: e.relationship && e.relationship !== 'connected to' ? e.relationship : '',
-        edgeColor: edgeColor || '#8A4938',
         onUpdateRelationship,
         onDeleteEdge,
       },
@@ -286,7 +275,6 @@ interface GraphCanvasProps {
   mapPixelate?: boolean;
   mapDimming?: number;
   mapFitMode?: 'contain' | 'cover';
-  edgeColor?: string;
   // Collapse feature
   collapsedNodeIds?: Set<string>;
   onToggleCollapse?: (nodeId: string) => void;
@@ -318,7 +306,6 @@ export function GraphCanvas({
   mapPixelate = false,
   mapDimming = 25,
   mapFitMode = 'cover',
-  edgeColor = '#8A4938',
   collapsedNodeIds,
   onToggleCollapse,
 }: GraphCanvasProps) {
@@ -507,12 +494,11 @@ export function GraphCanvas({
       hiddenNodeIds,
       handleUpdateRelationship,
       handleDeleteEdge,
-      edgeColor,
     );
 
     setNodes(flowNodes);
     setEdges(flowEdges);
-  }, [collapsedNodeIds, onToggleCollapse, selectedNodeId, isExploreMode, handleUpdateRelationship, handleDeleteEdge, edgeColor, setNodes, setEdges]);
+  }, [collapsedNodeIds, onToggleCollapse, selectedNodeId, isExploreMode, handleUpdateRelationship, handleDeleteEdge, setNodes, setEdges]);
 
   // Load data
   const loadGraph = useCallback(() => {
@@ -525,10 +511,10 @@ export function GraphCanvas({
     loadGraph();
   }, [loadGraph, refreshKey]);
 
-  // Re-derive visible graph when collapse state, selection, or edgeColor changes
+  // Re-derive visible graph when collapse state or selection changes
   useEffect(() => {
     rebuildGraph();
-  }, [collapsedNodeIds, selectedNodeId, edgeColor, rebuildGraph]);
+  }, [collapsedNodeIds, selectedNodeId, rebuildGraph]);
 
   // Fit view on initial load
   useEffect(() => {
@@ -596,7 +582,7 @@ export function GraphCanvas({
 
   const onConnect = useCallback(
     (connection: Connection) => {
-      // Prompt for relationship name (optional — leave blank for a clean straight line)
+      // Prompt for relationship name (optional — leave blank for a plain line):
       const relInput = window.prompt('Name this relationship (leave blank for a plain line):', '');
       if (relInput === null) return; // User cancelled
       const relationship = relInput.trim();
@@ -643,86 +629,70 @@ export function GraphCanvas({
     [isDrawingMode, setCenter]
   );
 
-  // Instantly update edge colors across active edges when edgeColor changes
-  useEffect(() => {
-    setEdges(eds => eds.map(e => ({
-      ...e,
-      data: {
-        ...e.data,
-        edgeColor,
-      },
-    })));
-  }, [edgeColor, setEdges]);
-
   return (
-    <EdgeColorContext.Provider value={edgeColor}>
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={handleNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onNodeClick={handleNodeClick}
-        onNodeDoubleClick={handleNodeDoubleClick}
-        onPaneClick={() => {
-          if (!isDrawingMode) onCanvasClick();
-        }}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
-        nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
-        nodesDraggable={!isExploreMode && !isDrawingMode}
-        nodesConnectable={!isExploreMode && !isDrawingMode}
-        elementsSelectable={!isDrawingMode}
-        panOnDrag={!isDrawingMode}
-        selectionOnDrag={false}
-        fitView
-        fitViewOptions={{ padding: 0.2 }}
-        minZoom={0.2}
-        maxZoom={2.5}
-        defaultEdgeOptions={{ type: 'loreEdge' }}
-        proOptions={{ hideAttribution: true }}
-        style={{
-          background: 'var(--bg)',
-          ['--lore-edge-stroke' as any]: edgeColor || '#8A4938',
-        }}
-      >
-        <Background
-          variant={BackgroundVariant.Dots}
-          gap={24}
-          size={0.75}
-          color="rgba(162, 158, 149, 0.45)"
-        />
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      onNodesChange={handleNodesChange}
+      onEdgesChange={onEdgesChange}
+      onConnect={onConnect}
+      onNodeClick={handleNodeClick}
+      onNodeDoubleClick={handleNodeDoubleClick}
+      onPaneClick={() => {
+        if (!isDrawingMode) onCanvasClick();
+      }}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
+      nodesDraggable={!isExploreMode && !isDrawingMode}
+      nodesConnectable={!isExploreMode && !isDrawingMode}
+      elementsSelectable={!isDrawingMode}
+      panOnDrag={!isDrawingMode}
+      selectionOnDrag={false}
+      fitView
+      fitViewOptions={{ padding: 0.2 }}
+      minZoom={0.2}
+      maxZoom={2.5}
+      defaultEdgeOptions={{ type: 'loreEdge' }}
+      proOptions={{ hideAttribution: true }}
+      style={{ background: 'var(--bg)' }}
+    >
+      <Background
+        variant={BackgroundVariant.Dots}
+        gap={24}
+        size={0.75}
+        color="rgba(162, 158, 149, 0.45)"
+      />
 
-        {/* World Map & Ambient Backdrop Layer */}
-        {mapUrl && (
-          <MapBackdrop
-            mapUrl={mapUrl}
-            opacity={mapOpacity}
-            scale={mapScale}
-            position={mapPosition}
-            isFixed={mapFixed}
-            isAdjusting={isMapAdjusting}
-            onPositionChange={onMapPositionChange}
-            backdropMode={backdropMode}
-            blur={mapBlur}
-            pixelate={mapPixelate}
-            dimming={mapDimming}
-            fitMode={mapFitMode}
-          />
-        )}
-
-        {/* Freehand Vector Drawing Layer */}
-        <DrawingCanvas
-          ideaId={ideaId}
-          strokes={strokes}
-          onStrokesChange={onStrokesChange || (() => {})}
-          isDrawingMode={isDrawingMode}
-          activeTool={activeTool}
-          activeColor={activeColor}
-          activeSize={activeSize}
+      {/* World Map & Ambient Backdrop Layer */}
+      {mapUrl && (
+        <MapBackdrop
+          mapUrl={mapUrl}
+          opacity={mapOpacity}
+          scale={mapScale}
+          position={mapPosition}
+          isFixed={mapFixed}
+          isAdjusting={isMapAdjusting}
+          onPositionChange={onMapPositionChange}
+          backdropMode={backdropMode}
+          blur={mapBlur}
+          pixelate={mapPixelate}
+          dimming={mapDimming}
+          fitMode={mapFitMode}
         />
-      </ReactFlow>
-    </EdgeColorContext.Provider>
+      )}
+
+      {/* Freehand Vector Drawing Layer */}
+      <DrawingCanvas
+        ideaId={ideaId}
+        strokes={strokes}
+        onStrokesChange={onStrokesChange || (() => {})}
+        isDrawingMode={isDrawingMode}
+        activeTool={activeTool}
+        activeColor={activeColor}
+        activeSize={activeSize}
+      />
+    </ReactFlow>
   );
 }

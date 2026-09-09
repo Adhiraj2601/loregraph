@@ -172,7 +172,6 @@ export interface WorldMapSettings {
   pixelate?: boolean;
   dimming?: number; // 0–80%
   fitMode?: 'contain' | 'cover';
-  edgeColor?: string;
 }
 
 export const DEFAULT_MAP_SETTINGS: WorldMapSettings = {
@@ -185,7 +184,6 @@ export const DEFAULT_MAP_SETTINGS: WorldMapSettings = {
   pixelate: false,
   dimming: 25,
   fitMode: 'cover',
-  edgeColor: '#8A4938',
 };
 
 export function loadMapSettings(ideaId: string): WorldMapSettings {
