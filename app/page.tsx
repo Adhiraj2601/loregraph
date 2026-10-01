@@ -72,10 +72,10 @@ function HomePageContent() {
               Aakhyana
             </h1>
             <p
-              className="text-lg sm:text-xl font-serif italic max-w-xl leading-relaxed"
+              className="text-xl sm:text-2xl font-satisfy max-w-2xl leading-relaxed"
               style={{ color: 'var(--text-secondary)' }}
             >
-              A place for ideas that have not finished becoming worlds.
+              It starts with a spark, that turns into a place, that grows into a world
             </p>
           </motion.div>
         </section>

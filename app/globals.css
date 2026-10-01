@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=JetBrains+Mono:wght@400;500&family=Zeyada&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=JetBrains+Mono:wght@400;500&family=Zeyada&family=Satisfy&display=swap');
 
 @import "tailwindcss";
 
@@ -85,6 +85,10 @@ body {
 
 .font-zeyada {
   font-family: 'Zeyada', cursive, sans-serif;
+}
+
+.font-satisfy {
+  font-family: 'Satisfy', cursive, sans-serif;
 }
 
 .aakhyana-gradient-text {
