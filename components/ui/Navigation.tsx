@@ -45,10 +45,10 @@ export function Navigation() {
         <div className="flex items-baseline gap-3">
           <Link
             href="/"
-            className="text-base tracking-tight font-medium hover:opacity-75 transition-opacity"
-            style={{ color: 'var(--text-primary)', letterSpacing: '-0.02em' }}
+            className="font-zeyada text-2xl tracking-normal hover:opacity-75 transition-opacity"
+            style={{ color: 'var(--text-primary)' }}
           >
-            LOREGRAPH
+            LoreGraph
           </Link>
           <span
             className="hidden md:inline text-xs italic font-serif"

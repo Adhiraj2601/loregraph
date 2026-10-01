@@ -67,7 +67,7 @@ function HomePageContent() {
             transition={{ duration: 0.5 }}
           >
             <h1
-              className="font-serif text-4xl sm:text-5xl md:text-6xl font-normal tracking-tight mb-4 leading-[1.1]"
+              className="font-zeyada text-6xl sm:text-7xl md:text-8xl font-normal tracking-wide mb-3 leading-[1.05]"
               style={{ color: 'var(--text-primary)' }}
             >
               LoreGraph
