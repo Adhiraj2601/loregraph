@@ -45,8 +45,7 @@ export function Navigation() {
         <div className="flex items-baseline gap-3">
           <Link
             href="/"
-            className="font-zeyada text-2xl tracking-normal hover:opacity-75 transition-opacity"
-            style={{ color: 'var(--text-primary)' }}
+            className="font-zeyada aakhyana-gradient-text text-2xl tracking-normal hover:opacity-85 transition-opacity"
           >
             Aakhyana
           </Link>

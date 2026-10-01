@@ -87,6 +87,15 @@ body {
   font-family: 'Zeyada', cursive, sans-serif;
 }
 
+.aakhyana-gradient-text {
+  background-image: linear-gradient(to right, #ff8177 0%, #ff867a 0%, #ff8c7f 21%, #f99185 52%, #cf556c 78%, #b12a5b 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  display: inline-block;
+}
+
 ::selection {
   background: rgba(138, 73, 56, 0.15);
   color: var(--text-primary);
