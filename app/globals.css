@@ -28,7 +28,7 @@
   /* Cracked Earth Background Variables */
   --cracked-earth-base: #F4F1EA;
   --cracked-earth-line: #3D352E;
-  --cracked-earth-opacity: 0.06;
+  --cracked-earth-opacity: 0.14;
   --cracked-earth-frequency: 0.02;
   --cracked-earth-seed: 10;
 }
@@ -45,6 +45,11 @@
   transform: translateZ(0);
   will-change: transform;
   backface-visibility: hidden;
+}
+
+.crack-flood {
+  flood-color: var(--cracked-earth-line);
+  flood-opacity: var(--cracked-earth-opacity);
 }
 
 * {
@@ -64,6 +69,7 @@ body {
   background-color: var(--bg);
   min-height: 100vh;
   color: var(--text-primary);
+  isolation: isolate;
 }
 
 .font-serif {
