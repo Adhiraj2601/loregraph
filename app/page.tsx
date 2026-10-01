@@ -67,7 +67,7 @@ function HomePageContent() {
             transition={{ duration: 0.5 }}
           >
             <h1
-              className="font-zeyada aakhyana-gradient-text text-6xl sm:text-7xl md:text-8xl font-normal tracking-wide mb-3 leading-[1.05]"
+              className="font-zeyada aakhyana-gradient-text text-6xl sm:text-7xl md:text-8xl font-bold tracking-wide mb-3 leading-[1.05]"
             >
               Aakhyana
             </h1>
