@@ -49,12 +49,6 @@ export function Navigation() {
           >
             Aakhyana
           </Link>
-          <span
-            className="hidden md:inline text-xs italic font-serif"
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            Personal Archive
-          </span>
         </div>
 
         {/* Right: Minimal Nav Actions */}
