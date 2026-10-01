@@ -28,28 +28,27 @@
   /* Cracked Earth Background Variables */
   --cracked-earth-base: #F4F1EA;
   --cracked-earth-line: #3D352E;
-  --cracked-earth-opacity: 0.14;
+  --cracked-earth-opacity: 0.08;
   --cracked-earth-frequency: 0.02;
   --cracked-earth-seed: 10;
 }
 
-/* Cracked Earth Background Layer */
-.cracked-earth-layer {
+/* Cracked Earth Background Layer (Uiverse.io by UserNameSekhar) */
+.cracked-earth {
   position: fixed;
   inset: 0;
   width: 100vw;
   height: 100vh;
   z-index: -1;
   pointer-events: none;
-  background-color: var(--cracked-earth-base);
+  opacity: var(--cracked-earth-opacity, 0.08);
+  filter: url(#cracks);
   transform: translateZ(0);
   will-change: transform;
-  backface-visibility: hidden;
 }
 
 .crack-flood {
-  flood-color: var(--cracked-earth-line);
-  flood-opacity: var(--cracked-earth-opacity);
+  flood-color: var(--cracked-earth-line, #3D352E);
 }
 
 * {
