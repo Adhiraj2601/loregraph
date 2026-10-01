@@ -48,7 +48,7 @@ export function Navigation() {
             className="font-zeyada text-2xl tracking-normal hover:opacity-75 transition-opacity"
             style={{ color: 'var(--text-primary)' }}
           >
-            LoreGraph
+            Aakhyana
           </Link>
           <span
             className="hidden md:inline text-xs italic font-serif"

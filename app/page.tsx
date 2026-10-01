@@ -70,7 +70,7 @@ function HomePageContent() {
               className="font-zeyada text-6xl sm:text-7xl md:text-8xl font-normal tracking-wide mb-3 leading-[1.05]"
               style={{ color: 'var(--text-primary)' }}
             >
-              LoreGraph
+              Aakhyana
             </h1>
             <p
               className="text-lg sm:text-xl font-serif italic max-w-xl leading-relaxed"

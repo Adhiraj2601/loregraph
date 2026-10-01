@@ -4,7 +4,7 @@ import { LoreGraphProvider } from '@/lib/context';
 import { CrackedEarthBackground } from '@/components/ui/CrackedEarthBackground';
 
 export const metadata: Metadata = {
-  title: 'LoreGraph — Interactive Worldbuilding',
+  title: 'Aakhyana — Interactive Worldbuilding',
   description: 'Capture fragments. Connect ideas. Build worlds.',
 };
 
