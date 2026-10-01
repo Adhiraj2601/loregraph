@@ -24,6 +24,27 @@
   --accent2: #596A72;
   --success: #657560;
   --danger: #9B3D3D;
+
+  /* Cracked Earth Background Variables */
+  --cracked-earth-base: #F4F1EA;
+  --cracked-earth-line: #3D352E;
+  --cracked-earth-opacity: 0.06;
+  --cracked-earth-frequency: 0.02;
+  --cracked-earth-seed: 10;
+}
+
+/* Cracked Earth Background Layer */
+.cracked-earth-layer {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  pointer-events: none;
+  background-color: var(--cracked-earth-base);
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
 }
 
 * {

@@ -55,7 +55,7 @@ function HomePageContent() {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+    <div className="min-h-screen">
       <Navigation />
 
       <main className="pt-24 pb-32 px-6 sm:px-12 md:px-20 max-w-5xl mx-auto">

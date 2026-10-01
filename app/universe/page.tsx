@@ -155,7 +155,7 @@ function UniverseContent() {
   }, [router]);
 
   return (
-    <div className="h-screen flex flex-col" style={{ background: 'var(--bg)' }}>
+    <div className="h-screen flex flex-col">
       <Navigation />
 
       <div className="flex-1 relative" style={{ marginTop: '64px' }}>
