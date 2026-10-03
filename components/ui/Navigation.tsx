@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLoreGraph } from '@/lib/context';
+import { User as UserIcon, LogOut, ChevronDown } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
 import { QuickIdeaModal } from '@/components/modals/QuickIdeaModal';
 import { SearchPanel } from '@/components/panels/SearchPanel';
 import { InboxPanel } from '@/components/panels/InboxPanel';
@@ -12,8 +14,14 @@ import { KeyboardShortcutsModal } from '@/components/modals/KeyboardShortcutsMod
 export function Navigation() {
   const pathname = usePathname();
   const { inbox, setIsSearchOpen, isSearchOpen, isInboxOpen, setIsInboxOpen, isQuickIdeaOpen, setIsQuickIdeaOpen } = useLoreGraph();
+  const { user, profile, loading: authLoading, signOut } = useAuth();
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const pendingCount = inbox.filter(i => i.status === 'pending').length;
+
+  const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.name || 'Worldbuilder';
+  const displayEmail = profile?.email || user?.email || '';
+  const avatarUrl = profile?.avatar_url || user?.user_metadata?.avatar_url || null;
 
   // Global key listener for '/' and '?'
   useEffect(() => {
@@ -129,6 +137,101 @@ export function Navigation() {
           >
             ?
           </button>
+
+          {/* User Auth Section */}
+          <div className="relative pl-1 border-l" style={{ borderColor: 'var(--border-light)' }}>
+            {authLoading ? (
+              <div className="w-7 h-7 rounded-full bg-[var(--bg-subtle)] animate-pulse" />
+            ) : user ? (
+              <div className="relative">
+                <button
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="flex items-center gap-2 p-1 rounded-full hover:bg-[var(--bg-subtle)] transition-colors cursor-pointer"
+                  title={displayName}
+                >
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl}
+                      alt={displayName}
+                      className="w-7 h-7 rounded-full object-cover border"
+                      style={{ borderColor: 'var(--border)' }}
+                    />
+                  ) : (
+                    <div
+                      className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-serif font-bold text-white"
+                      style={{ background: 'var(--accent-rust)' }}
+                    >
+                      {displayName.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <span className="hidden md:inline text-xs font-serif max-w-[100px] truncate" style={{ color: 'var(--text-primary)' }}>
+                    {displayName}
+                  </span>
+                  <ChevronDown className="w-3 h-3 text-[var(--text-tertiary)]" />
+                </button>
+
+                {/* Dropdown Menu */}
+                {userMenuOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setUserMenuOpen(false)}
+                    />
+                    <div
+                      className="absolute right-0 mt-2 w-48 rounded-lg shadow-lg z-50 py-1.5 text-xs font-serif"
+                      style={{
+                        background: 'var(--surface)',
+                        border: '1px solid var(--border)',
+                      }}
+                    >
+                      <div className="px-3 py-2 border-b" style={{ borderColor: 'var(--border-light)' }}>
+                        <p className="font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                          {displayName}
+                        </p>
+                        <p className="font-mono text-[10px] truncate" style={{ color: 'var(--text-tertiary)' }}>
+                          {displayEmail}
+                        </p>
+                      </div>
+
+                      <Link
+                        href="/profile"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 hover:bg-[var(--bg-subtle)] transition-colors"
+                        style={{ color: 'var(--text-primary)' }}
+                      >
+                        <UserIcon className="w-3.5 h-3.5" style={{ color: 'var(--accent-rust)' }} />
+                        <span>Profile & Settings</span>
+                      </Link>
+
+                      <button
+                        onClick={async () => {
+                          setUserMenuOpen(false);
+                          await signOut();
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-[var(--bg-subtle)] transition-colors cursor-pointer"
+                        style={{ color: 'var(--accent-rust)' }}
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded text-xs font-serif font-medium transition-all hover:bg-[var(--accent-rust)] hover:text-white"
+                style={{
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-primary)',
+                  background: 'var(--surface)',
+                }}
+              >
+                <span>Sign In</span>
+              </Link>
+            )}
+          </div>
         </div>
       </nav>
 

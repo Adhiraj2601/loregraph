@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { AuthProvider } from '@/lib/auth-context';
 import { LoreGraphProvider } from '@/lib/context';
 import { CrackedEarthBackground } from '@/components/ui/CrackedEarthBackground';
 
@@ -25,9 +26,11 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen relative" style={{ background: 'var(--bg)', isolation: 'isolate' }}>
         <CrackedEarthBackground />
-        <LoreGraphProvider>
-          {children}
-        </LoreGraphProvider>
+        <AuthProvider>
+          <LoreGraphProvider>
+            {children}
+          </LoreGraphProvider>
+        </AuthProvider>
       </body>
     </html>
   );
