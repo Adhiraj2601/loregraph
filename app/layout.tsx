@@ -7,6 +7,13 @@ import { CrackedEarthBackground } from '@/components/ui/CrackedEarthBackground';
 export const metadata: Metadata = {
   title: 'Aakhyana — Interactive Worldbuilding',
   description: 'Capture fragments. Connect ideas. Build worlds.',
+  icons: {
+    icon: [
+      { url: '/icon.png', type: 'image/png' },
+      { url: '/favicon.ico' },
+    ],
+    apple: '/icon.png',
+  },
 };
 
 export default function RootLayout({
