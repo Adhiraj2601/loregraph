@@ -5,8 +5,8 @@ import { Idea, CreateIdeaInput } from '@/types/idea';
 import { LoreNode, CreateNodeInput } from '@/types/node';
 import { LoreEdge, CreateEdgeInput } from '@/types/edge';
 import { InboxItem, CreateInboxItemInput } from '@/types/inbox';
-import { ideaRepo, nodeRepo, edgeRepo, inboxRepo, syncFromSupabase } from '@/lib/storage/repository';
-import { seedDemoData, forceSeedDemoData } from '@/data/demo-data';
+import { ideaRepo, nodeRepo, edgeRepo, inboxRepo, syncFromSupabase, clearAllLocalData } from '@/lib/storage/repository';
+import { forceSeedDemoData } from '@/data/demo-data';
 
 interface LoreGraphContextValue {
   // Ideas
@@ -15,6 +15,7 @@ interface LoreGraphContextValue {
   updateIdea: (id: string, updates: Partial<Idea>) => void;
   deleteIdea: (id: string) => void;
   restoreDemoData: () => void;
+  clearAllData: () => void;
   // Nodes
   getNodes: (ideaId: string) => LoreNode[];
   createNode: (input: CreateNodeInput) => LoreNode;
@@ -64,7 +65,6 @@ export function LoreGraphProvider({ children }: { children: React.ReactNode }) {
 
     // Then sync from cloud if configured
     syncFromSupabase().then(() => {
-      seedDemoData();
       refreshIdeas();
       refreshInbox();
     });
@@ -91,6 +91,12 @@ export function LoreGraphProvider({ children }: { children: React.ReactNode }) {
 
   const restoreDemoData = useCallback(() => {
     forceSeedDemoData();
+    refreshIdeas();
+    refreshInbox();
+  }, [refreshIdeas, refreshInbox]);
+
+  const clearAllData = useCallback(() => {
+    clearAllLocalData();
     refreshIdeas();
     refreshInbox();
   }, [refreshIdeas, refreshInbox]);
@@ -125,7 +131,7 @@ export function LoreGraphProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <LoreGraphContext.Provider value={{
-      ideas, createIdea, updateIdea, deleteIdea, restoreDemoData,
+      ideas, createIdea, updateIdea, deleteIdea, restoreDemoData, clearAllData,
       getNodes, createNode, updateNode, deleteNode,
       getEdges, createEdge, deleteEdge,
       inbox, createInboxItem, updateInboxItem, deleteInboxItem,

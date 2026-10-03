@@ -851,3 +851,13 @@ export function isSeeded(): boolean {
 export function markSeeded(): void {
   safeSet(KEYS.SEEDED, true);
 }
+
+export function clearAllLocalData(): void {
+  safeSet(KEYS.IDEAS, []);
+  safeSet(KEYS.NODES, []);
+  safeSet(KEYS.EDGES, []);
+  safeSet(KEYS.INBOX, []);
+  safeSet(KEYS.DRAWINGS, []);
+  safeSet(KEYS.ERAS, []);
+  safeSet(KEYS.SEEDED, true);
+}

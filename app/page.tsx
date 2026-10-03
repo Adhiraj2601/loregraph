@@ -4,8 +4,10 @@ import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowUpRight, Plus, Sparkles, User, Wand2, Compass, RefreshCw } from 'lucide-react';
+import { ArrowUpRight, Plus, Sparkles, User, Wand2, Compass, RefreshCw, Layers, BookOpen, Clock, Trash2 } from 'lucide-react';
 import { useLoreGraph, LoreGraphProvider } from '@/lib/context';
+import { useAuth } from '@/lib/auth-context';
+import { GoogleIcon } from '@/components/auth/GoogleIcon';
 import { Navigation } from '@/components/ui/Navigation';
 import { CreateIdeaModal } from '@/components/modals/CreateIdeaModal';
 import { nodeRepo } from '@/lib/storage/repository';
@@ -14,8 +16,10 @@ import { NODE_TYPE_CONFIG } from '@/lib/nodeTypes';
 
 function HomePageContent() {
   const router = useRouter();
-  const { ideas, inbox, deleteIdea, restoreDemoData } = useLoreGraph();
+  const { ideas, inbox, deleteIdea, restoreDemoData, clearAllData } = useLoreGraph();
+  const { user, loading: authLoading, signInWithGoogle } = useAuth();
   const [createOpen, setCreateOpen] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
 
   // Aggregate characters, magic, lore across all worlds for the index
   const { characters, systems, recentIdeas } = useMemo(() => {
@@ -60,7 +64,7 @@ function HomePageContent() {
 
       <main className="pt-24 pb-32 px-6 sm:px-12 md:px-20 max-w-5xl mx-auto">
         {/* Editorial Masthead */}
-        <section className="mb-20 sm:mb-28">
+        <section className="mb-14 sm:mb-20">
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
@@ -80,80 +84,235 @@ function HomePageContent() {
           </motion.div>
         </section>
 
-        {/* Recently Touched Section */}
-        {recentIdeas.length > 0 && (
-          <section className="mb-20">
-            <div className="flex items-baseline justify-between border-b pb-3 mb-6" style={{ borderColor: 'var(--border)' }}>
-              <h2
-                className="text-xs font-mono uppercase tracking-widest"
-                style={{ color: 'var(--text-tertiary)', letterSpacing: '0.18em' }}
+        {authLoading ? (
+          <div className="py-20 text-center">
+            <div className="w-7 h-7 rounded-full border-2 border-[var(--accent-rust)] border-t-transparent animate-spin mx-auto mb-3" />
+            <p className="font-serif italic text-xs text-[var(--text-secondary)]">Loading archive...</p>
+          </div>
+        ) : !user ? (
+          /* Option B: Editorial Landing Hero for Visitors */
+          <section className="space-y-16">
+            <div
+              className="p-8 sm:p-12 rounded-2xl text-center max-w-2xl mx-auto"
+              style={{
+                background: 'rgba(255, 255, 255, 0.72)',
+                border: '1px solid var(--border)',
+                backdropFilter: 'blur(8px)',
+                boxShadow: '0 4px 24px rgba(0, 0, 0, 0.03)',
+              }}
+            >
+              <div
+                className="w-11 h-11 rounded-full flex items-center justify-center mx-auto mb-4"
+                style={{ background: 'rgba(138, 73, 56, 0.08)' }}
               >
-                Recently Touched
+                <Sparkles className="w-5 h-5" style={{ color: 'var(--accent-rust)' }} />
+              </div>
+
+              <h2 className="font-serif text-2xl sm:text-3xl font-medium mb-3" style={{ color: 'var(--text-primary)' }}>
+                Your Personal Worldbuilding Archive
               </h2>
-              <span className="text-xs font-mono" style={{ color: 'var(--text-tertiary)' }}>
-                Active Threads
-              </span>
+              <p className="text-sm font-serif italic max-w-md mx-auto mb-8 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                A sacred space to chronicle mythologies, map relationship webs, design cartographic charts, and capture fleeting sparks.
+              </p>
+
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <button
+                  onClick={async () => {
+                    setSigningIn(true);
+                    await signInWithGoogle('/');
+                  }}
+                  disabled={signingIn}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-6 py-3.5 rounded-xl text-sm font-medium transition-all shadow-sm hover:shadow-md cursor-pointer hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60"
+                  style={{
+                    background: '#FFFFFF',
+                    border: '1px solid var(--border)',
+                    color: '#2D2825',
+                  }}
+                >
+                  <GoogleIcon />
+                  <span>{signingIn ? 'Redirecting to Google...' : 'Continue with Google'}</span>
+                </button>
+              </div>
+
+              <p className="text-[11px] font-mono mt-5" style={{ color: 'var(--text-tertiary)' }}>
+                Private & isolated per account · Syncs to Supabase
+              </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {recentIdeas.map((idea) => {
-                const nodeCount = nodeRepo.getAllByIdeaId(idea.id).length;
-                return (
-                  <div
-                    key={idea.id}
-                    onClick={() => router.push(`/ideas/${idea.id}`)}
-                    className="group cursor-pointer p-4 rounded transition-all hover:bg-[#ECE8DF]/60"
-                    style={{ border: '1px solid var(--border-light)' }}
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <h3
-                        className="font-serif text-lg font-medium group-hover:text-[#8A4938] transition-colors leading-snug"
-                        style={{ color: 'var(--text-primary)' }}
-                      >
-                        {idea.title}
-                      </h3>
-                      <ArrowUpRight
-                        size={15}
-                        className="opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 flex-shrink-0"
-                        style={{ color: 'var(--accent-rust)' }}
-                      />
-                    </div>
-                    <p
-                      className="text-xs leading-relaxed line-clamp-2 mb-3"
-                      style={{ color: 'var(--text-secondary)' }}
-                    >
-                      {idea.description}
-                    </p>
-                    <div className="flex items-center gap-3 text-[11px] font-mono" style={{ color: 'var(--text-tertiary)' }}>
-                      <span>{nodeCount} {nodeCount === 1 ? 'idea' : 'ideas'}</span>
-                      <span>·</span>
-                      <span>{formatRelativeTime(idea.updatedAt)}</span>
-                    </div>
-                  </div>
-                );
-              })}
+            {/* 3 Editorial Pillars */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+              <div
+                className="p-6 rounded-xl"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border-light)' }}
+              >
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-4" style={{ background: 'var(--bg)' }}>
+                  <Layers className="w-4 h-4" style={{ color: 'var(--accent-rust)' }} />
+                </div>
+                <h3 className="font-serif text-base font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
+                  Knowledge Graphs
+                </h3>
+                <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                  Link characters, magic systems, factions, and places into visual node webs with deep relationships.
+                </p>
+              </div>
+
+              <div
+                className="p-6 rounded-xl"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border-light)' }}
+              >
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-4" style={{ background: 'var(--bg)' }}>
+                  <BookOpen className="w-4 h-4" style={{ color: 'var(--accent-rust)' }} />
+                </div>
+                <h3 className="font-serif text-base font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
+                  Lore Fragments
+                </h3>
+                <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                  Capture sudden inspirations into an inbox anytime and forge them into full-fledged lore nodes later.
+                </p>
+              </div>
+
+              <div
+                className="p-6 rounded-xl"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border-light)' }}
+              >
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-4" style={{ background: 'var(--bg)' }}>
+                  <Clock className="w-4 h-4" style={{ color: 'var(--accent-rust)' }} />
+                </div>
+                <h3 className="font-serif text-base font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
+                  Eras & Chronicles
+                </h3>
+                <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                  Organize history into distinct epochs, illustrate custom cartographic maps, and track the flow of time.
+                </p>
+              </div>
             </div>
           </section>
-        )}
-
-        {/* Master Index */}
-        <section className="space-y-16">
-          <div className="flex items-baseline justify-between border-b pb-3 mb-8" style={{ borderColor: 'var(--border)' }}>
-            <h2
-              className="text-xs font-mono uppercase tracking-widest"
-              style={{ color: 'var(--text-tertiary)', letterSpacing: '0.18em' }}
-            >
-              Index
+        ) : ideas.length === 0 ? (
+          /* Empty State for Logged-In User with No Worlds */
+          <div
+            className="p-12 sm:p-16 rounded-2xl text-center max-w-xl mx-auto my-12"
+            style={{
+              background: 'rgba(255, 255, 255, 0.65)',
+              border: '1.5px dashed var(--border)',
+            }}
+          >
+            <Compass className="w-10 h-10 mx-auto mb-4" style={{ color: 'var(--accent-rust)' }} />
+            <h2 className="font-serif text-2xl font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
+              A Clean Slate
             </h2>
-            <button
-              onClick={() => setCreateOpen(true)}
-              className="text-xs font-medium hover:underline flex items-center gap-1"
-              style={{ color: 'var(--accent-rust)', textUnderlineOffset: '3px' }}
-            >
-              <Plus size={13} />
-              <span>New World</span>
-            </button>
+            <p className="text-xs font-serif italic text-[var(--text-secondary)] mb-6 max-w-sm mx-auto leading-relaxed">
+              Your personal worldbuilding canvas is waiting for its first spark. Begin by chronicling a world, realm, or deity.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <button
+                onClick={() => setCreateOpen(true)}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-mono tracking-wider uppercase transition-all shadow-sm hover:shadow cursor-pointer"
+                style={{ background: 'var(--accent-rust)', color: '#FCFAF7' }}
+              >
+                <Plus size={14} />
+                <span>Create First World</span>
+              </button>
+              <button
+                onClick={restoreDemoData}
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-xs font-serif transition-colors hover:bg-[var(--bg-subtle)] cursor-pointer"
+                style={{ color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}
+              >
+                <RefreshCw size={12} />
+                <span>Load Sample Worlds</span>
+              </button>
+            </div>
           </div>
+        ) : (
+          /* Authenticated Dashboard with Ideas */
+          <>
+            {/* Recently Touched Section */}
+            {recentIdeas.length > 0 && (
+              <section className="mb-20">
+                <div className="flex items-baseline justify-between border-b pb-3 mb-6" style={{ borderColor: 'var(--border)' }}>
+                  <h2
+                    className="text-xs font-mono uppercase tracking-widest"
+                    style={{ color: 'var(--text-tertiary)', letterSpacing: '0.18em' }}
+                  >
+                    Recently Touched
+                  </h2>
+                  <span className="text-xs font-mono" style={{ color: 'var(--text-tertiary)' }}>
+                    Active Threads
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {recentIdeas.map((idea) => {
+                    const nodeCount = nodeRepo.getAllByIdeaId(idea.id).length;
+                    return (
+                      <div
+                        key={idea.id}
+                        onClick={() => router.push(`/ideas/${idea.id}`)}
+                        className="group cursor-pointer p-4 rounded transition-all hover:bg-[#ECE8DF]/60"
+                        style={{ border: '1px solid var(--border-light)' }}
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <h3
+                            className="font-serif text-lg font-medium group-hover:text-[#8A4938] transition-colors leading-snug"
+                            style={{ color: 'var(--text-primary)' }}
+                          >
+                            {idea.title}
+                          </h3>
+                          <ArrowUpRight
+                            size={15}
+                            className="opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 flex-shrink-0"
+                            style={{ color: 'var(--accent-rust)' }}
+                          />
+                        </div>
+                        <p
+                          className="text-xs leading-relaxed line-clamp-2 mb-3"
+                          style={{ color: 'var(--text-secondary)' }}
+                        >
+                          {idea.description}
+                        </p>
+                        <div className="flex items-center gap-3 text-[11px] font-mono" style={{ color: 'var(--text-tertiary)' }}>
+                          <span>{nodeCount} {nodeCount === 1 ? 'idea' : 'ideas'}</span>
+                          <span>·</span>
+                          <span>{formatRelativeTime(idea.updatedAt)}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {/* Master Index */}
+            <section className="space-y-16">
+              <div className="flex items-baseline justify-between border-b pb-3 mb-8" style={{ borderColor: 'var(--border)' }}>
+                <h2
+                  className="text-xs font-mono uppercase tracking-widest"
+                  style={{ color: 'var(--text-tertiary)', letterSpacing: '0.18em' }}
+                >
+                  Index
+                </h2>
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => {
+                      if (confirm('Clear local archive and start with a fresh slate?')) {
+                        clearAllData();
+                      }
+                    }}
+                    className="text-[11px] font-mono text-[var(--text-tertiary)] hover:text-[var(--accent-rust)] transition-colors flex items-center gap-1 cursor-pointer"
+                    title="Reset archive to blank"
+                  >
+                    <Trash2 size={12} />
+                    <span>Clear Archive</span>
+                  </button>
+                  <button
+                    onClick={() => setCreateOpen(true)}
+                    className="text-xs font-medium hover:underline flex items-center gap-1 cursor-pointer"
+                    style={{ color: 'var(--accent-rust)', textUnderlineOffset: '3px' }}
+                  >
+                    <Plus size={13} />
+                    <span>New World</span>
+                  </button>
+                </div>
+              </div>
 
           {/* WORLDS SECTION */}
           <div>
@@ -336,7 +495,9 @@ function HomePageContent() {
             )}
           </div>
         </section>
-      </main>
+      </>
+    )}
+  </main>
 
       {createOpen && <CreateIdeaModal onClose={() => setCreateOpen(false)} />}
     </div>
