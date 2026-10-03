@@ -99,6 +99,21 @@ function safeSet<T>(key: string, value: T): void {
   }
 }
 
+export const DUMMY_TITLES = new Set([
+  'the ash dragons',
+  'the moon kingdom',
+  'the seven immortal swords',
+  'cities beneath the ocean',
+  'the god who forgot his name',
+  'earth',
+  'mars',
+]);
+
+export function isDummyTitle(title?: string): boolean {
+  if (!title) return false;
+  return DUMMY_TITLES.has(title.trim().toLowerCase());
+}
+
 // ─── Cloud Sync Helper ────────────────────────────────────────────────────────
 
 export async function syncFromSupabase(): Promise<boolean> {
@@ -113,23 +128,37 @@ export async function syncFromSupabase(): Promise<boolean> {
       supabase.from('eras').select('*'),
     ]);
 
-    const localIdeas = safeGet<Idea[]>(KEYS.IDEAS, []);
+    // Clean up any residual dummy ideas from Supabase
+    const dummyCloudIdeas = (ideasRes.data || []).filter(i => isDummyTitle(i.title));
+    if (dummyCloudIdeas.length > 0 && supabase) {
+      const dummyIds = dummyCloudIdeas.map(i => i.id);
+      supabase.from('ideas').delete().in('id', dummyIds).then(() => {});
+      supabase.from('nodes').delete().in('idea_id', dummyIds).then(() => {});
+      supabase.from('edges').delete().in('idea_id', dummyIds).then(() => {});
+      supabase.from('eras').delete().in('idea_id', dummyIds).then(() => {});
+      supabase.from('drawings').delete().in('idea_id', dummyIds).then(() => {});
+    }
+
+    const localIdeas = safeGet<Idea[]>(KEYS.IDEAS, []).filter(i => !isDummyTitle(i.title));
     const localNodes = safeGet<LoreNode[]>(KEYS.NODES, []);
     const localEdges = safeGet<LoreEdge[]>(KEYS.EDGES, []);
     const localInbox = safeGet<InboxItem[]>(KEYS.INBOX, []);
     const localDrawings = safeGet<DrawingStroke[]>(KEYS.DRAWINGS, []);
     const localEras = safeGet<Era[]>(KEYS.ERAS, []);
 
-    // 1. Sync Ideas (Union Merge)
-    const cloudIdeas: Idea[] = (ideasRes.data || []).map(i => ({
-      id: i.id,
-      title: i.title,
-      description: i.description || '',
-      tags: Array.isArray(i.tags) ? i.tags : [],
-      coverColor: i.cover_color,
-      createdAt: i.created_at,
-      updatedAt: i.updated_at,
-    }));
+    // 1. Sync Ideas (Union Merge, excluding dummy titles)
+    const cloudIdeas: Idea[] = (ideasRes.data || [])
+      .filter(i => !isDummyTitle(i.title))
+      .map(i => ({
+        id: i.id,
+        title: i.title,
+        description: i.description || '',
+        tags: Array.isArray(i.tags) ? i.tags : [],
+        coverColor: i.cover_color,
+        createdAt: i.created_at,
+        updatedAt: i.updated_at,
+      }));
+
     const mergedIdeasMap = new Map<string, Idea>();
     localIdeas.forEach(i => mergedIdeasMap.set(i.id, i));
     cloudIdeas.forEach(i => mergedIdeasMap.set(i.id, i));
@@ -137,7 +166,7 @@ export async function syncFromSupabase(): Promise<boolean> {
     safeSet(KEYS.IDEAS, finalIdeas);
     if (finalIdeas.length > 0) markSeeded();
 
-    const missingCloudIdeas = localIdeas.filter(li => !cloudIdeas.some(ci => ci.id === li.id));
+    const missingCloudIdeas = localIdeas.filter(li => !cloudIdeas.some(ci => ci.id === li.id) && !isDummyTitle(li.title));
     if (missingCloudIdeas.length > 0) {
       supabase.from('ideas').upsert(
         missingCloudIdeas.map(i => ({
@@ -333,7 +362,21 @@ export async function syncFromSupabase(): Promise<boolean> {
 
 export class LocalIdeaRepository implements IIdeaRepository {
   getAll(): Idea[] {
-    return safeGet<Idea[]>(KEYS.IDEAS, []);
+    const raw = safeGet<Idea[]>(KEYS.IDEAS, []);
+    const clean = raw.filter((i) => !isDummyTitle(i.title));
+    if (clean.length !== raw.length) {
+      safeSet(KEYS.IDEAS, clean);
+      const cleanIds = new Set(clean.map(i => i.id));
+      const rawNodes = safeGet<LoreNode[]>(KEYS.NODES, []);
+      safeSet(KEYS.NODES, rawNodes.filter(n => cleanIds.has(n.ideaId)));
+      const rawEdges = safeGet<LoreEdge[]>(KEYS.EDGES, []);
+      safeSet(KEYS.EDGES, rawEdges.filter(e => cleanIds.has(e.ideaId)));
+      const rawDrawings = safeGet<DrawingStroke[]>(KEYS.DRAWINGS, []);
+      safeSet(KEYS.DRAWINGS, rawDrawings.filter(d => cleanIds.has(d.ideaId)));
+      const rawEras = safeGet<Era[]>(KEYS.ERAS, []);
+      safeSet(KEYS.ERAS, rawEras.filter(e => cleanIds.has(e.ideaId)));
+    }
+    return clean;
   }
 
   getById(id: string): Idea | undefined {
@@ -408,7 +451,9 @@ export class LocalIdeaRepository implements IIdeaRepository {
 
 export class LocalNodeRepository implements INodeRepository {
   getAll(): LoreNode[] {
-    return safeGet<LoreNode[]>(KEYS.NODES, []);
+    const raw = safeGet<LoreNode[]>(KEYS.NODES, []);
+    const validIdeaIds = new Set(ideaRepo.getAll().map((i) => i.id));
+    return raw.filter((n) => validIdeaIds.has(n.ideaId) && !isDummyTitle(n.title));
   }
 
   getAllByIdeaId(ideaId: string): LoreNode[] {

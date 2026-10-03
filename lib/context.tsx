@@ -6,7 +6,6 @@ import { LoreNode, CreateNodeInput } from '@/types/node';
 import { LoreEdge, CreateEdgeInput } from '@/types/edge';
 import { InboxItem, CreateInboxItemInput } from '@/types/inbox';
 import { ideaRepo, nodeRepo, edgeRepo, inboxRepo, syncFromSupabase, clearAllLocalData } from '@/lib/storage/repository';
-import { forceSeedDemoData } from '@/data/demo-data';
 
 interface LoreGraphContextValue {
   // Ideas
@@ -89,11 +88,7 @@ export function LoreGraphProvider({ children }: { children: React.ReactNode }) {
     refreshIdeas();
   }, [refreshIdeas]);
 
-  const restoreDemoData = useCallback(() => {
-    forceSeedDemoData();
-    refreshIdeas();
-    refreshInbox();
-  }, [refreshIdeas, refreshInbox]);
+  const restoreDemoData = useCallback(() => {}, []);
 
   const clearAllData = useCallback(() => {
     clearAllLocalData();

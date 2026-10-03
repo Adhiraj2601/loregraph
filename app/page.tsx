@@ -16,7 +16,7 @@ import { NODE_TYPE_CONFIG } from '@/lib/nodeTypes';
 
 function HomePageContent() {
   const router = useRouter();
-  const { ideas, inbox, deleteIdea, restoreDemoData, clearAllData } = useLoreGraph();
+  const { ideas, inbox, deleteIdea, clearAllData } = useLoreGraph();
   const { user, loading: authLoading, signInWithGoogle } = useAuth();
   const [createOpen, setCreateOpen] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
@@ -210,15 +210,7 @@ function HomePageContent() {
                 style={{ background: 'var(--accent-rust)', color: '#FCFAF7' }}
               >
                 <Plus size={14} />
-                <span>Create First World</span>
-              </button>
-              <button
-                onClick={restoreDemoData}
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-xs font-serif transition-colors hover:bg-[var(--bg-subtle)] cursor-pointer"
-                style={{ color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}
-              >
-                <RefreshCw size={12} />
-                <span>Load Sample Worlds</span>
+                <span>Create Your First World</span>
               </button>
             </div>
           </div>
